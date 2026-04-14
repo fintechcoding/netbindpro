@@ -1,0 +1,89 @@
+# Build outputs
+[Oo]bj/
+[Bb]in/
+*.user
+*.suo
+
+# Claude Code local session files
+.claude/
+
+*.userosscache
+*.sln.docstates
+.vs/
+_ReSharper*/
+*.ReSharper
+*.DotSettings.user
+
+# NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+
+# Visual Studio
+*.aps
+*.ncb
+*.opendb
+*.opensdf
+*.sdf
+*.cachefile
+*.VC.db
+*.VC.opendb
+*.pidb
+*.svclog
+*.scc
+ipch/
+*.VC.db
+*.VC.opendb
+$tf/
+_TeamCity*
+*.dotCover
+*.diagsession
+*.psess
+*.vsp
+*.vspx
+.builds
+*.publish.xml
+*.publishsettings
+orleans.codegen.cs
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# JetBrains IDEs
+.idea/
+*.iml
+
+# Logs
+*.log
+logs/
+
+# Test results
+TestResults/
+coverage/
+*.trx
+*.coveragexml
+
+# Installer output
+installer/Output/
+installer/*.exe
+installer/*.msi
+!installer/NetBindPro.Setup.iss
+
+# Publish output
+publish/

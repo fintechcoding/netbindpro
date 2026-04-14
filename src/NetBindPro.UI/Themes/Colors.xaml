@@ -1,0 +1,60 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Background scale (clean white) -->
+    <Color x:Key="Bg0Color">#FFFFFFFF</Color>
+    <Color x:Key="Bg1Color">#FFF9F9F9</Color>
+    <Color x:Key="Bg2Color">#FFF2F2F2</Color>
+    <Color x:Key="Bg3Color">#FFE8E8E8</Color>
+    <Color x:Key="Bg4Color">#FFDDDDDD</Color>
+
+    <SolidColorBrush x:Key="Bg0Brush"   Color="{StaticResource Bg0Color}"/>
+    <SolidColorBrush x:Key="Bg1Brush"   Color="{StaticResource Bg1Color}"/>
+    <SolidColorBrush x:Key="Bg2Brush"   Color="{StaticResource Bg2Color}"/>
+    <SolidColorBrush x:Key="Bg3Brush"   Color="{StaticResource Bg3Color}"/>
+    <SolidColorBrush x:Key="Bg4Brush"   Color="{StaticResource Bg4Color}"/>
+
+    <!-- Text (dark on light) -->
+    <Color x:Key="Text1Color">#FF1A1A1A</Color>
+    <Color x:Key="Text2Color">#FF555555</Color>
+    <Color x:Key="Text3Color">#FF999999</Color>
+
+    <SolidColorBrush x:Key="Text1Brush" Color="{StaticResource Text1Color}"/>
+    <SolidColorBrush x:Key="Text2Brush" Color="{StaticResource Text2Color}"/>
+    <SolidColorBrush x:Key="Text3Brush" Color="{StaticResource Text3Color}"/>
+
+    <!-- Borders -->
+    <Color x:Key="BorderColor">#FFE0E0E0</Color>
+    <Color x:Key="Border2Color">#FFD0D0D0</Color>
+    <SolidColorBrush x:Key="BorderBrush"  Color="{StaticResource BorderColor}"/>
+    <SolidColorBrush x:Key="Border2Brush" Color="{StaticResource Border2Color}"/>
+
+    <!-- Accent (PortSwigger orange) -->
+    <Color x:Key="AccentColor">#FFFF6633</Color>
+    <Color x:Key="Accent2Color">#FFE8551F</Color>
+    <SolidColorBrush x:Key="AccentBrush"  Color="{StaticResource AccentColor}"/>
+    <SolidColorBrush x:Key="Accent2Brush" Color="{StaticResource Accent2Color}"/>
+    <SolidColorBrush x:Key="AccentDimBrush" Color="#15FF6633"/>
+
+    <!-- Semantic -->
+    <Color x:Key="GreenColor">#FF16A34A</Color>
+    <Color x:Key="AmberColor">#FFD97706</Color>
+    <Color x:Key="RedColor">#FFDC2626</Color>
+    <Color x:Key="PurpleColor">#FF7C3AED</Color>
+    <Color x:Key="TealColor">#FF0D9488</Color>
+    <Color x:Key="WireGuardColor">#FF0284C7</Color>
+    <Color x:Key="TailscaleColor">#FF2563EB</Color>
+
+    <SolidColorBrush x:Key="GreenBrush"      Color="{StaticResource GreenColor}"/>
+    <SolidColorBrush x:Key="AmberBrush"      Color="{StaticResource AmberColor}"/>
+    <SolidColorBrush x:Key="RedBrush"        Color="{StaticResource RedColor}"/>
+    <SolidColorBrush x:Key="PurpleBrush"     Color="{StaticResource PurpleColor}"/>
+    <SolidColorBrush x:Key="TealBrush"       Color="{StaticResource TealColor}"/>
+    <SolidColorBrush x:Key="WireGuardBrush"  Color="{StaticResource WireGuardColor}"/>
+    <SolidColorBrush x:Key="TailscaleBrush"  Color="{StaticResource TailscaleColor}"/>
+
+    <SolidColorBrush x:Key="GreenDimBrush"   Color="#1A16A34A"/>
+    <SolidColorBrush x:Key="AmberDimBrush"   Color="#1AD97706"/>
+    <SolidColorBrush x:Key="RedDimBrush"     Color="#1ADC2626"/>
+
+</ResourceDictionary>

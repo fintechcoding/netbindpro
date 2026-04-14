@@ -1,0 +1,169 @@
+<Page x:Class="NetBindPro.UI.Views.SettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{StaticResource Bg0Brush}" Title="Settings">
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Background="{StaticResource Bg0Brush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Height="56">
+            <Grid Margin="24,0">
+                <TextBlock Text="Settings" Style="{StaticResource TextHeading}" VerticalAlignment="Center"/>
+                <Button Style="{StaticResource PrimaryButton}" Content="Save Settings"
+                        HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Command="{Binding SaveCommand}"/>
+            </Grid>
+        </Border>
+        <ScrollViewer>
+            <StackPanel Margin="24,20">
+                <TextBlock Text="GENERAL" Style="{StaticResource TextLabel}" Margin="0,0,0,8"/>
+                <Border Background="{StaticResource Bg0Brush}"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8">
+                    <StackPanel>
+                        <Grid Margin="18,14">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Start with Windows" Style="{StaticResource TextBase}" FontWeight="SemiBold"/>
+                                <TextBlock Text="Launch NetBind Pro when Windows starts" Style="{StaticResource TextHint}"/>
+                            </StackPanel>
+                            <CheckBox Grid.Column="1" Style="{StaticResource ToggleCheckBox}"
+                                      IsChecked="{Binding StartWithWindows}" VerticalAlignment="Center"/>
+                        </Grid>
+                        <Separator/>
+                        <Grid Margin="18,14">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Minimize to system tray" Style="{StaticResource TextBase}" FontWeight="SemiBold"/>
+                                <TextBlock Text="Closing the window keeps NetBind Pro running in the background" Style="{StaticResource TextHint}"/>
+                            </StackPanel>
+                            <CheckBox Grid.Column="1" Style="{StaticResource ToggleCheckBox}"
+                                      IsChecked="{Binding MinimizeToTray}" VerticalAlignment="Center"/>
+                        </Grid>
+                        <Separator/>
+                        <Grid Margin="18,14">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Show adapter in window title" Style="{StaticResource TextBase}" FontWeight="SemiBold"/>
+                                <TextBlock Text="Append [AdapterName - IP] to bound process title bars" Style="{StaticResource TextHint}"/>
+                            </StackPanel>
+                            <CheckBox Grid.Column="1" Style="{StaticResource ToggleCheckBox}"
+                                      IsChecked="{Binding ShowAdapterInTitle}" VerticalAlignment="Center"/>
+                        </Grid>
+                        <Separator/>
+                        <Grid Margin="18,14">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Show notifications" Style="{StaticResource TextBase}" FontWeight="SemiBold"/>
+                                <TextBlock Text="Balloon tips when injection succeeds or fails" Style="{StaticResource TextHint}"/>
+                            </StackPanel>
+                            <CheckBox Grid.Column="1" Style="{StaticResource ToggleCheckBox}"
+                                      IsChecked="{Binding ShowNotifications}" VerticalAlignment="Center"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="AUTO-INJECT" Style="{StaticResource TextLabel}" Margin="0,20,0,8"/>
+                <Border Background="{StaticResource Bg0Brush}"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8">
+                    <StackPanel>
+                        <Grid Margin="18,14">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Monitor new processes" Style="{StaticResource TextBase}" FontWeight="SemiBold"/>
+                                <TextBlock Text="Watch for process creation and auto-inject matching rules" Style="{StaticResource TextHint}"/>
+                            </StackPanel>
+                            <CheckBox Grid.Column="1" Style="{StaticResource ToggleCheckBox}"
+                                      IsChecked="{Binding MonitorNewProcesses}" VerticalAlignment="Center"/>
+                        </Grid>
+                        <Separator/>
+                        <Grid Margin="18,14">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="200"/></Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Injection delay (ms)" Style="{StaticResource TextBase}" FontWeight="SemiBold"/>
+                                <TextBlock Text="Wait before injecting after process starts (500-2000 ms recommended)"
+                                           Style="{StaticResource TextHint}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                <Slider Minimum="0" Maximum="5000" Width="120"
+                                        Value="{Binding InjectionDelayMs}" VerticalAlignment="Center"
+                                        TickFrequency="100" IsSnapToTickEnabled="True"/>
+                                <TextBlock VerticalAlignment="Center" Width="50" TextAlignment="Right"
+                                           Foreground="{StaticResource Text2Brush}"
+                                           FontFamily="Consolas" FontSize="12"
+                                           Margin="8,0,0,0">
+                                    <TextBlock.Text>
+                                        <Binding Path="InjectionDelayMs" StringFormat="{}{0} ms"/>
+                                    </TextBlock.Text>
+                                </TextBlock>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="DIAGNOSTICS" Style="{StaticResource TextLabel}" Margin="0,20,0,8"/>
+                <Border Background="{StaticResource Bg0Brush}"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8">
+                    <StackPanel>
+                        <Grid Margin="18,14">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Debug mode" Style="{StaticResource TextBase}" FontWeight="SemiBold"/>
+                                <TextBlock Style="{StaticResource TextHint}" TextWrapping="Wrap">
+                                    Write logs to <Run FontFamily="Consolas" Foreground="{StaticResource AccentBrush}">%TEMP%\NetBindPro-&lt;process&gt;.log</Run>
+                                </TextBlock>
+                            </StackPanel>
+                            <CheckBox Grid.Column="1" Style="{StaticResource ToggleCheckBox}"
+                                      IsChecked="{Binding DebugMode}" VerticalAlignment="Center"/>
+                        </Grid>
+                        <Separator/>
+                        <Grid Margin="18,14">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Open log folder" Style="{StaticResource TextBase}" FontWeight="SemiBold"/>
+                                <TextBlock Text="Open %TEMP% to find NetBindPro log files" Style="{StaticResource TextHint}"/>
+                            </StackPanel>
+                            <Button Grid.Column="1" Style="{StaticResource GhostButton}"
+                                    Content="Open Folder" Click="OpenTemp_Click" VerticalAlignment="Center"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="PROFILE" Style="{StaticResource TextLabel}" Margin="0,20,0,8"/>
+                <Border Background="{StaticResource Bg0Brush}"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8">
+                    <Grid Margin="18,14">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Profile location" Style="{StaticResource TextBase}" FontWeight="SemiBold"/>
+                            <TextBlock Text="%APPDATA%\NetBindPro\profile.json"
+                                       FontFamily="Consolas" FontSize="11"
+                                       Foreground="{StaticResource Text3Brush}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource GhostButton}" Content="Export"
+                                    Margin="0,0,8,0" Click="Export_Click"/>
+                            <Button Style="{StaticResource GhostButton}" Content="Import"
+                                    Click="Import_Click"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <TextBlock Text="ABOUT" Style="{StaticResource TextLabel}" Margin="0,20,0,8"/>
+                <Border Background="{StaticResource Bg0Brush}"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8"
+                        Padding="18,16">
+                    <StackPanel>
+                        <TextBlock Text="NetBind Pro v2.0.0" Style="{StaticResource TextBase}" FontWeight="SemiBold" FontSize="14"/>
+                        <TextBlock Text="Per-process network adapter binding for Windows 10/11"
+                                   Style="{StaticResource TextMuted}" Margin="0,4,0,0"/>
+                        <TextBlock Style="{StaticResource TextHint}" Margin="0,10,0,0">
+                            Based on <Hyperlink NavigateUri="https://github.com/falahati/NetworkAdapterSelector"
+                                                RequestNavigate="Hyperlink_Navigate"
+                                                Foreground="{StaticResource AccentBrush}">NetworkAdapterSelector</Hyperlink>
+                            by Soroush Falahati. MIT License.
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+                <FrameworkElement Height="24"/>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Page>

@@ -1,0 +1,45 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Style x:Key="TextBase" TargetType="TextBlock">
+        <Setter Property="FontFamily"   Value="Segoe UI"/>
+        <Setter Property="Foreground"   Value="{StaticResource Text1Brush}"/>
+        <Setter Property="FontSize"     Value="13"/>
+        <Setter Property="FontWeight"   Value="Normal"/>
+        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
+    </Style>
+
+    <Style x:Key="TextMuted" TargetType="TextBlock" BasedOn="{StaticResource TextBase}">
+        <Setter Property="Foreground" Value="{StaticResource Text2Brush}"/>
+        <Setter Property="FontSize"   Value="12"/>
+    </Style>
+
+    <Style x:Key="TextHint" TargetType="TextBlock" BasedOn="{StaticResource TextBase}">
+        <Setter Property="Foreground" Value="{StaticResource Text3Brush}"/>
+        <Setter Property="FontSize"   Value="11"/>
+    </Style>
+
+    <Style x:Key="TextMono" TargetType="TextBlock" BasedOn="{StaticResource TextBase}">
+        <Setter Property="FontFamily" Value="Cascadia Code, Consolas, Courier New"/>
+        <Setter Property="FontSize"   Value="11"/>
+        <Setter Property="Foreground" Value="{StaticResource Text2Brush}"/>
+    </Style>
+
+    <Style x:Key="TextLabel" TargetType="TextBlock" BasedOn="{StaticResource TextBase}">
+        <Setter Property="FontSize"   Value="10"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{StaticResource Text3Brush}"/>
+    </Style>
+
+    <Style x:Key="TextHeading" TargetType="TextBlock" BasedOn="{StaticResource TextBase}">
+        <Setter Property="FontSize"   Value="16"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+
+    <Style x:Key="TextSectionTitle" TargetType="TextBlock" BasedOn="{StaticResource TextBase}">
+        <Setter Property="FontSize"   Value="11"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{StaticResource Text2Brush}"/>
+    </Style>
+
+</ResourceDictionary>

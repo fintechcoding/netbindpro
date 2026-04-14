@@ -1,0 +1,41 @@
+<Page x:Class="NetBindPro.UI.Views.LogPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{StaticResource Bg0Brush}"
+      Title="Log">
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Background="{StaticResource Bg0Brush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Height="56">
+            <Grid Margin="24,0">
+                <TextBlock Text="Application Log" Style="{StaticResource TextHeading}" VerticalAlignment="Center"/>
+                <Button Style="{StaticResource GhostButton}" Content="Clear Log"
+                        HorizontalAlignment="Right" VerticalAlignment="Center" Click="Clear_Click"/>
+            </Grid>
+        </Border>
+        <ScrollViewer>
+            <ItemsControl ItemsSource="{Binding Entries}" Margin="24,10">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="48"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding Timestamp}"
+                                       FontFamily="Consolas" FontSize="11"
+                                       Foreground="{StaticResource Text3Brush}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding LevelText}"
+                                       FontFamily="Consolas" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{Binding Color}"/>
+                            <TextBlock Grid.Column="2" Text="{Binding Message}"
+                                       FontFamily="Segoe UI" FontSize="12"
+                                       Foreground="{StaticResource Text2Brush}"
+                                       TextWrapping="Wrap"/>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </DockPanel>
+</Page>

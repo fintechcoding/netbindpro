@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>NetBindPro</AssemblyName>
+    <RootNamespace>NetBindPro.UI</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x64</Platforms>
+    <StartupObject>NetBindPro.UI.App</StartupObject>
+    <Description>NetBind Pro — Per-process network adapter binding for Windows</Description>
+    <NoWarn>CS1591;CS8602;CS8604</NoWarn>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetBindPro.Core\NetBindPro.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="app.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging"             Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug"       Version="8.0.0" />
+    <PackageReference Include="CommunityToolkit.Mvvm"                    Version="8.3.2" />
+    <!-- WMI for process monitoring (ProcessMonitorService) -->
+    <PackageReference Include="System.Management"                        Version="8.0.0" />
+  </ItemGroup>
+
+</Project>
