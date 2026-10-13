@@ -74,10 +74,10 @@ internal delegate bool CreateProcessDelegate(
 
 // ─── P/Invoke declarations ────────────────────────────────────────────────────
 
-internal static partial class NativeWinsock
+internal static class NativeWinsock
 {
-    [LibraryImport("ws2_32.dll", SetLastError = true)]
-    public static partial IntPtr socket(int af, int type, int protocol);
+    [DllImport("ws2_32.dll", SetLastError = true)]
+    public static extern IntPtr socket(int af, int type, int protocol);
 
     [DllImport("ws2_32.dll", EntryPoint = "bind", SetLastError = true)]
     public static extern int bind(IntPtr s, IntPtr name, int namelen);
@@ -88,29 +88,29 @@ internal static partial class NativeWinsock
     [DllImport("ws2_32.dll", EntryPoint = "bind", SetLastError = true)]
     public static extern int bind6(IntPtr s, ref SockAddrIn6 addr, int namelen);
 
-    [LibraryImport("ws2_32.dll", SetLastError = true)]
-    public static partial int connect(IntPtr s, IntPtr name, int namelen);
+    [DllImport("ws2_32.dll", SetLastError = true)]
+    public static extern int connect(IntPtr s, IntPtr name, int namelen);
 
-    [LibraryImport("ws2_32.dll", SetLastError = true)]
-    public static partial int WSAConnect(
+    [DllImport("ws2_32.dll", SetLastError = true)]
+    public static extern int WSAConnect(
         IntPtr s, IntPtr name, int namelen,
         IntPtr lpCallerData, IntPtr lpCalleeData, IntPtr lpSQOS, IntPtr lpGQOS);
 
-    [LibraryImport("ws2_32.dll", SetLastError = true)]
-    public static partial int closesocket(IntPtr s);
+    [DllImport("ws2_32.dll", SetLastError = true)]
+    public static extern int closesocket(IntPtr s);
 
-    [LibraryImport("ws2_32.dll")]
-    public static partial int WSAGetLastError();
+    [DllImport("ws2_32.dll")]
+    public static extern int WSAGetLastError();
 
-    [LibraryImport("ws2_32.dll")]
-    public static partial void WSASetLastError(int iError);
+    [DllImport("ws2_32.dll")]
+    public static extern void WSASetLastError(int iError);
 
-    [LibraryImport("kernel32.dll")]
-    public static partial IntPtr LoadLibraryW([MarshalAs(UnmanagedType.LPWStr)] string lpLibFileName);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    public static extern IntPtr LoadLibraryW(string lpLibFileName);
 
-    [LibraryImport("kernel32.dll")]
+    [DllImport("kernel32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
-    public static partial bool FreeLibrary(IntPtr hModule);
+    public static extern bool FreeLibrary(IntPtr hModule);
 }
 
 internal static partial class NativeKernel

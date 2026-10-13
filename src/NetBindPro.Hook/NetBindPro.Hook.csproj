@@ -2,36 +2,30 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <!--
+      .NET Framework 4.8 — EasyHook can only inject a .NET Framework payload
+      (it hosts the Framework CLR inside the target process). Shipping the Hook
+      as net48 is what makes injection actually work. net48 is present on all
+      supported Windows 10/11 installs, so nothing extra needs bundling.
+    -->
+    <TargetFramework>net48</TargetFramework>
     <AssemblyName>NetBindPro.Hook</AssemblyName>
     <RootNamespace>NetBindPro.Hook</RootNamespace>
     <Platforms>x86;x64</Platforms>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Description>Injection engine for NetBind Pro</Description>
-    <SelfContained>false</SelfContained>
     <!-- Suppress XML doc and nullable warnings for injection code -->
-    <NoWarn>CS1591;CS8602;CS8604</NoWarn>
+    <NoWarn>CS1591;CS8602;CS8604;CS8600;CS8601;CS8618;NU1701</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\NetBindPro.Core\NetBindPro.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <!--
-      EasyHook: the correct NuGet package ID is exactly "EasyHook".
-      Latest stable version on NuGet.org is 2.27.0.0.
-      If NuGet cannot resolve it, download manually from:
-      https://www.nuget.org/packages/EasyHook/2.27.0.0
-      or use the GitHub release: https://github.com/EasyHook/EasyHook/releases
-    -->
+    <!-- EasyHook ships its native loaders (EasyHook32/64.dll, EasyLoad*, *Svc.exe)
+         as contentFiles that copy to the output folder for a .NET Framework TFM. -->
     <PackageReference Include="EasyHook" Version="2.7.7097" />
-
-    <!--
-      System.CommandLine: still in preview. If this version is unavailable,
-      replace with: Version="2.0.0-beta4.22272.1"
-    -->
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
   </ItemGroup>
 

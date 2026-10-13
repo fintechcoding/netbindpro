@@ -109,10 +109,13 @@ public partial class TunnelsPage : Page
             return;
         }
 
+        // Capture the running state BEFORE SetBusy() flips it to "Starting",
+        // otherwise the Stop branch is never taken.
+        var wasRunning = vm.IsRunning;
         vm.SetBusy();
         try
         {
-            var (ok, message) = vm.IsRunning
+            var (ok, message) = wasRunning
                 ? await _wg.StopAsync(vm.Tunnel)
                 : await _wg.StartAsync(vm.Tunnel);
 

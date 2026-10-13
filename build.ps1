@@ -103,24 +103,25 @@ if ($Publish -or $Installer) {
 
     New-Item -ItemType Directory -Path $PublishDir -Force | Out-Null
 
+    # UI: self-contained .NET 8 (runtime bundled)
     dotnet publish "src\NetBindPro.UI\NetBindPro.UI.csproj" `
         --configuration Release --runtime win-x64 --self-contained `
         --output $PublishDir /p:Platform=x64
     Assert-ExitCode
 
-    dotnet publish "src\NetBindPro.Hook\NetBindPro.Hook.csproj" `
-        --configuration Release --runtime win-x64 --self-contained `
-        --output $PublishDir /p:Platform=x64
+    # Hook: .NET Framework 4.8 (required by EasyHook). Build and copy its output —
+    # the exe plus EasyHook's native loaders — next to the UI.
+    dotnet build "src\NetBindPro.Hook\NetBindPro.Hook.csproj" `
+        --configuration Release /p:Platform=x64
     Assert-ExitCode
+    Copy-Item "src\NetBindPro.Hook\bin\x64\Release\net48\*" $PublishDir -Recurse -Force
 
-    # Build x86 Hook and copy alongside x64 output
-    $Publish86Dir = "publish\win-x86"
-    dotnet publish "src\NetBindPro.Hook\NetBindPro.Hook.csproj" `
-        --configuration Release --runtime win-x86 --self-contained `
-        --output $Publish86Dir /p:Platform=x86
+    # x86 Hook (for 32-bit targets) into an x86\ subfolder with its own natives
+    dotnet build "src\NetBindPro.Hook\NetBindPro.Hook.csproj" `
+        --configuration Release /p:Platform=x86
     Assert-ExitCode
-
-    Copy-Item "$Publish86Dir\NetBindPro.Hook.exe" "$PublishDir\NetBindPro.Hook.x86.exe" -Force
+    New-Item -ItemType Directory -Path "$PublishDir\x86" -Force | Out-Null
+    Copy-Item "src\NetBindPro.Hook\bin\x86\Release\net48\*" "$PublishDir\x86" -Recurse -Force
 
     Write-Host "  ✓ Publish complete → $PublishDir" -ForegroundColor Green
 }

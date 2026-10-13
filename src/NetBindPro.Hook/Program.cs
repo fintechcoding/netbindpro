@@ -4,9 +4,9 @@
 using System.CommandLine;
 using System.Diagnostics;
 using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Reflection;
 using EasyHook;
-using NetBindPro.Core.Services;
 
 namespace NetBindPro.Hook;
 
@@ -85,42 +85,37 @@ internal static class Program
     private static void HandleList()
     {
         Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine("  NetBind Pro — Available Network Adapters");
-        Console.WriteLine("  " + new string('─', 50));
-        Console.ResetColor();
+        Console.WriteLine("  " + new string('-', 50));
         Console.WriteLine();
 
-        var adapters = AdapterDiscovery.GetAll(includeDown: false);
+        var nics = NetworkInterface.GetAllNetworkInterfaces()
+            .Where(n => n.NetworkInterfaceType != NetworkInterfaceType.Loopback &&
+                        n.OperationalStatus == OperationalStatus.Up)
+            .ToList();
 
-        if (adapters.Count == 0)
+        if (nics.Count == 0)
         {
             Console.WriteLine("  No active adapters found.");
             return;
         }
 
-        foreach (var a in adapters)
+        foreach (var n in nics)
         {
-            var tag = a.Kind switch
+            string? ipv4 = null;
+            try
             {
-                Core.Models.AdapterKind.WireGuard => "[WireGuard]",
-                Core.Models.AdapterKind.Tailscale => "[Tailscale]",
-                Core.Models.AdapterKind.Vpn       => "[VPN]",
-                Core.Models.AdapterKind.WiFi      => "[Wi-Fi]",
-                Core.Models.AdapterKind.Ethernet  => "[Ethernet]",
-                _                                  => "[Other]"
-            };
+                ipv4 = n.GetIPProperties().UnicastAddresses
+                    .FirstOrDefault(a => a.Address.AddressFamily == AddressFamily.InterNetwork)
+                    ?.Address.ToString();
+            }
+            catch { /* ignore */ }
 
-            Console.ForegroundColor = a.IsVpnLike ? ConsoleColor.Green : ConsoleColor.Gray;
-            Console.Write($"  {tag,-12}");
-            Console.ResetColor();
-            Console.Write($" {a.Name,-20}");
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($" {a.IpV4Address ?? "no IPv4"}");
-            Console.ResetColor();
-            Console.WriteLine($"             GUID: {{{a.Id}}}");
-            if (!string.IsNullOrEmpty(a.Description))
-                Console.WriteLine($"             Desc: {a.Description}");
+            Console.Write($"  {n.Name,-24}");
+            Console.WriteLine($" {ipv4 ?? "no IPv4"}");
+            Console.WriteLine($"             GUID: {{{n.Id}}}");
+            if (!string.IsNullOrEmpty(n.Description))
+                Console.WriteLine($"             Desc: {n.Description}");
             Console.WriteLine();
         }
     }

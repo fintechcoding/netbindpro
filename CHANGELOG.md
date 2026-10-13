@@ -7,6 +7,25 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [2.3.0] — 2026-10-14 — Injection fixed
+
+### Fixed
+- **Injection now works** — the Hook (`Hook.exe` + the injected `Guest` payload) was
+  built for .NET 8, but EasyHook can only inject a **.NET Framework** payload (it hosts
+  the Framework CLR inside the target). That is why every injection failed with
+  "Hook process exited with code 1". The Hook project is now **.NET Framework 4.8**, and
+  EasyHook's native loaders (`EasyHook64.dll`, `EasyLoad64.dll`, the `*Svc.exe` helpers)
+  ship alongside it. net48 is present on all supported Windows 10/11 installs, so nothing
+  extra is bundled for it; the UI stays self-contained .NET 8.
+- **Tunnel Stop button** — clicking Stop did nothing because the busy-state flip happened
+  before the running-state was read, so the code always took the Start branch. Fixed.
+
+### Internal
+- Hook no longer references `NetBindPro.Core` (its `list` command enumerates adapters
+  directly); `LibraryImport` P/Invokes converted to `DllImport` for net48.
+
+---
+
 ## [2.2.1] — 2026-10-14
 
 ### Fixed

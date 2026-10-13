@@ -100,6 +100,13 @@ public sealed class TunnelConfig
     /// <summary>Interface address(es) parsed from the config, for display only.</summary>
     public string? Address { get; set; }
 
+    /// <summary>
+    /// Interface MTU written into the config. WireGuard's default is 1420; when the
+    /// tunnel is nested inside another VPN (e.g. OpenVPN) a lower value such as 1280
+    /// is often required for the handshake and traffic to pass.
+    /// </summary>
+    public int? Mtu { get; set; }
+
     /// <summary>Bring this tunnel up automatically when NetBind Pro starts.</summary>
     public bool AutoStart { get; set; }
 

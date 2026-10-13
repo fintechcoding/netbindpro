@@ -145,7 +145,7 @@ public sealed class Guest : IEntryPoint
         {
             lock (_socketsLock)
             {
-                _boundSockets.TryAdd(s, false);
+                if (!_boundSockets.ContainsKey(s)) _boundSockets.Add(s, false);
             }
             Log("socket", $"New socket {s:X} af={af}");
         }
@@ -162,7 +162,7 @@ public sealed class Guest : IEntryPoint
         // Delegate to the original then track the new socket
         var s = NativeWinsock.socket((int)af, (int)type, (int)protocol);
         if (s != IntPtr.Zero)
-            lock (_socketsLock) { _boundSockets.TryAdd(s, false); }
+            lock (_socketsLock) { if (!_boundSockets.ContainsKey(s)) _boundSockets.Add(s, false); }
         return s;
     }
 
