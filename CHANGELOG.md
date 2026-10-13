@@ -7,6 +7,17 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [2.2.0] — 2026-10-14
+
+### Added
+- **Tunnel auto-start** — mark a tunnel "Auto" on the Tunnels page and NetBind Pro brings
+  it up automatically on launch.
+- **Name-based rules** — a rule bound to a managed tunnel now resolves the tunnel's
+  *current* adapter by name at injection time, so it keeps working even if the tunnel is
+  re-created with a new adapter GUID. Applied to both manual and auto-inject paths.
+
+---
+
 ## [2.1.1] — 2026-10-14
 
 ### Changed

@@ -87,11 +87,15 @@ public sealed class ProcessMonitorService : IDisposable
             if (pidObj == null) return;
             var pid = Convert.ToInt32(pidObj);
 
+            // Resolve the live adapter — honours a tunnel-by-name rule even if the
+            // tunnel's GUID changed since the rule was created.
+            var (adapterId, adapterName) = WireGuardService.ResolveRuleAdapter(rule);
+
             _logger.LogInformation(
                 "Auto-injecting {Process} (PID {Pid}) → {Adapter}",
-                processName, pid, rule.AdapterName);
+                processName, pid, adapterName);
 
-            var result = await _injection.InjectAsync(pid, rule.AdapterId, rule.AdapterName);
+            var result = await _injection.InjectAsync(pid, adapterId, adapterName);
             if (!result.Success)
                 _logger.LogWarning("Auto-inject failed for {Process}: {Msg}", processName, result.Message);
         }

@@ -156,6 +156,19 @@ public partial class TunnelsPage : Page
         }
     }
 
+    // ─── Auto-start ──────────────────────────────────────────────────────────
+
+    private void AutoStart_Changed(object sender, RoutedEventArgs e)
+    {
+        if (sender is not CheckBox cb || ResolveVm(cb) is not { } vm) return;
+
+        var enabled = cb.IsChecked == true;
+        if (vm.Tunnel.AutoStart == enabled) return; // no-op (e.g. fired during load)
+
+        vm.Tunnel.AutoStart = enabled;
+        _profile.UpdateTunnel(vm.Tunnel);
+    }
+
     // ─── Delete ──────────────────────────────────────────────────────────────
 
     private async void Delete_Click(object sender, RoutedEventArgs e)
@@ -206,6 +219,8 @@ internal sealed class TunnelItemVm : INotifyPropertyChanged
     }
 
     public string Name => Tunnel.Name;
+
+    public bool IsAutoStart => Tunnel.AutoStart;
 
     public string Subtitle
     {

@@ -222,6 +222,23 @@ public sealed class WireGuardService
                 a.Name.Equals(tunnelName, StringComparison.OrdinalIgnoreCase) ||
                 a.Description.Contains(tunnelName, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// Resolves the adapter a rule should bind to. When the rule targets a managed
+    /// tunnel by name, the tunnel's <b>current</b> adapter id is used (so the rule
+    /// survives the tunnel being re-created with a new GUID). Falls back to the
+    /// rule's stored adapter id/name otherwise, or when the tunnel is down.
+    /// </summary>
+    public static (string AdapterId, string AdapterName) ResolveRuleAdapter(BindingRule rule)
+    {
+        if (!string.IsNullOrWhiteSpace(rule.TunnelName))
+        {
+            var adapter = ResolveAdapter(rule.TunnelName!);
+            if (adapter != null)
+                return (adapter.Id, adapter.Name);
+        }
+        return (rule.AdapterId, rule.AdapterName);
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private static async Task<(int Code, string Out, string Err)> RunWgAsync(string[] args, CancellationToken ct)

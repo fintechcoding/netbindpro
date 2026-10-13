@@ -96,9 +96,11 @@ public partial class RuleItemVm : ObservableObject
             return;
         }
 
+        var (adapterId, adapterName) = WireGuardService.ResolveRuleAdapter(Rule);
+
         foreach (var proc in processes)
         {
-            var result = await _injection.InjectAsync(proc.Id, Rule.AdapterId, Rule.AdapterName);
+            var result = await _injection.InjectAsync(proc.Id, adapterId, adapterName);
             if (!result.Success)
                 MessageBox.Show($"Injection failed for PID {proc.Id}: {result.Message}",
                     "NetBind Pro", MessageBoxButton.OK, MessageBoxImage.Warning);

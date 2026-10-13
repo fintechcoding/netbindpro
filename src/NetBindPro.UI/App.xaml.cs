@@ -32,6 +32,9 @@ public partial class App : Application
         // Start background services
         _services.GetRequiredService<ProcessMonitorService>().Start();
 
+        // Bring up any tunnels flagged auto-start (non-blocking).
+        _ = StartAutoStartTunnelsAsync();
+
         // System tray icon
         InitTrayIcon();
 
@@ -39,6 +42,31 @@ public partial class App : Application
         bool startMinimized = e.Args.Contains("--minimized");
         if (!startMinimized)
             ShowMainWindow();
+    }
+
+    // ─── Auto-start tunnels ──────────────────────────────────────────────────
+
+    private async Task StartAutoStartTunnelsAsync()
+    {
+        if (!WireGuardService.IsWireGuardInstalled) return;
+
+        var profile = _services!.GetRequiredService<ProfileService>();
+        var wg      = _services!.GetRequiredService<WireGuardService>();
+        var logger  = _services!.GetService<ILoggerFactory>()?.CreateLogger("AutoStart");
+
+        foreach (var tunnel in profile.Tunnels.Where(t => t.AutoStart).ToList())
+        {
+            try
+            {
+                var (ok, message) = await wg.StartAsync(tunnel);
+                if (!ok)
+                    logger?.LogWarning("Auto-start failed for {Name}: {Msg}", tunnel.Name, message);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Auto-start error for {Name}", tunnel.Name);
+            }
+        }
     }
 
     // ─── DI configuration ────────────────────────────────────────────────────

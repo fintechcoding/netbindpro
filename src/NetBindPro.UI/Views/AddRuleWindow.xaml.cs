@@ -197,12 +197,19 @@ public partial class AddRuleWindow : Window
             return;
         }
 
+        // If the chosen adapter is one of our managed WireGuard tunnels, bind the rule
+        // to the tunnel by name so it keeps working even if the tunnel is re-created.
+        var tunnelName = _profile.Tunnels
+            .FirstOrDefault(t => t.Name.Equals(_selectedAdapter.Name, StringComparison.OrdinalIgnoreCase))
+            ?.Name;
+
         _profile.AddRule(
             processName:  processName,
             adapterId:    _selectedAdapter.Id,
             adapterName:  _selectedAdapter.Name,
             processPath:  processPath,
-            notes:        string.IsNullOrWhiteSpace(NotesBox.Text) ? null : NotesBox.Text.Trim()
+            notes:        string.IsNullOrWhiteSpace(NotesBox.Text) ? null : NotesBox.Text.Trim(),
+            tunnelName:   tunnelName
         );
 
         DialogResult = true;

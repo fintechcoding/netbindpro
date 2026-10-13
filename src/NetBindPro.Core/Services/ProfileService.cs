@@ -118,7 +118,7 @@ public sealed class ProfileService
     /// Adds a new binding rule and immediately persists the profile.
     /// </summary>
     public BindingRule AddRule(string processName, string adapterId, string adapterName,
-        string? processPath = null, string? notes = null)
+        string? processPath = null, string? notes = null, string? tunnelName = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(processName);
         ArgumentException.ThrowIfNullOrWhiteSpace(adapterId);
@@ -129,6 +129,7 @@ public sealed class ProfileService
             ProcessPath = processPath,
             AdapterId = adapterId,
             AdapterName = adapterName,
+            TunnelName = tunnelName,
             Notes = notes
         };
 
