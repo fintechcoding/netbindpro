@@ -1,0 +1,116 @@
+<Page x:Class="NetBindPro.UI.Views.TunnelsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{StaticResource Bg0Brush}" Title="Tunnels">
+    <DockPanel>
+        <!-- Header -->
+        <Border DockPanel.Dock="Top" Background="{StaticResource Bg0Brush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Height="56">
+            <Grid Margin="24,0">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="WireGuard Tunnels" Style="{StaticResource TextHeading}"/>
+                    <Border Background="{StaticResource AccentDimBrush}" CornerRadius="10"
+                            Padding="8,2" VerticalAlignment="Center" Margin="10,0,0,0">
+                        <TextBlock x:Name="CountBadge" Text="0"
+                                   FontFamily="Segoe UI" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource AccentBrush}"/>
+                    </Border>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button Style="{StaticResource GhostButton}" Content="Refresh" Click="Refresh_Click" Margin="0,0,10,0"/>
+                    <Button Style="{StaticResource PrimaryButton}" Content="Import .conf" Click="Import_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- WireGuard-missing banner -->
+        <Border x:Name="MissingBanner" DockPanel.Dock="Top" Background="#FFF7E6"
+                BorderBrush="#F0D9A0" BorderThickness="0,0,0,1" Padding="24,12"
+                Visibility="Collapsed">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
+                    <TextBlock Text="WireGuard for Windows is not installed"
+                               FontSize="13" FontWeight="SemiBold" Foreground="#8A6D00"/>
+                    <TextBlock x:Name="MissingBannerSub"
+                               Text="It is required to bring tunnels up. NetBind Pro can download and install it for you."
+                               FontSize="11" Foreground="#A07D1A" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                </StackPanel>
+                <Button x:Name="InstallWgButton" Grid.Column="1" Style="{StaticResource PrimaryButton}"
+                        Content="Download &amp; Install" VerticalAlignment="Center" Click="InstallWg_Click"/>
+            </Grid>
+        </Border>
+
+        <!-- Empty state -->
+        <Border x:Name="EmptyState" DockPanel.Dock="Top" Padding="24,40" Visibility="Collapsed">
+            <StackPanel HorizontalAlignment="Center">
+                <TextBlock Text="&#xE968;" FontFamily="Segoe MDL2 Assets" FontSize="34"
+                           Foreground="{StaticResource Text3Brush}" HorizontalAlignment="Center"/>
+                <TextBlock Text="No tunnels yet"
+                           FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource Text2Brush}"
+                           HorizontalAlignment="Center" Margin="0,10,0,2"/>
+                <TextBlock Text="Import a WireGuard .conf file to create a tunnel you can assign processes to."
+                           FontSize="12" Foreground="{StaticResource Text3Brush}"
+                           HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="360" TextAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Tunnel list -->
+        <ScrollViewer>
+            <ItemsControl x:Name="TunnelList" Margin="16,12">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="8,6" CornerRadius="10" Background="White"
+                                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="16,14">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Status dot -->
+                                <Ellipse Grid.Column="0" Width="10" Height="10" VerticalAlignment="Center"
+                                         Fill="{Binding StateColor}"/>
+
+                                <!-- Info -->
+                                <StackPanel Grid.Column="1" Margin="14,0,12,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                                                   Foreground="#1A1A1A"/>
+                                        <Border CornerRadius="4" Padding="6,2" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                Background="{Binding StateBg}">
+                                            <TextBlock Text="{Binding StateText}" FontSize="9" FontWeight="Bold"
+                                                       Foreground="{Binding StateColor}"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Subtitle}" FontFamily="Consolas" FontSize="11"
+                                               Foreground="#999" Margin="0,3,0,0"/>
+                                    <TextBlock Text="{Binding ExitIpText}" FontSize="11" Foreground="{StaticResource AccentBrush}"
+                                               Margin="0,3,0,0" Visibility="{Binding ExitIpVisibility}"/>
+                                </StackPanel>
+
+                                <!-- Actions -->
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource GhostButton}" Content="Check IP" FontSize="11"
+                                            Padding="10,4" Margin="0,0,8,0" Click="CheckIp_Click"
+                                            IsEnabled="{Binding IsRunning}"/>
+                                    <Button Content="{Binding ToggleLabel}" FontSize="11" Padding="12,4" Margin="0,0,8,0"
+                                            Style="{StaticResource GhostButton}" Click="Toggle_Click"/>
+                                    <Button Style="{StaticResource IconButton}" Click="Delete_Click"
+                                            ToolTip="Remove tunnel">
+                                        <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="13"
+                                                   Foreground="#C0392B"/>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </DockPanel>
+</Page>

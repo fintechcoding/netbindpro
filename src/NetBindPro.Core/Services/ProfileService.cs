@@ -65,6 +65,55 @@ public sealed class ProfileService
         get { lock (_lock) return _profile.Settings; }
     }
 
+    /// <summary>Shortcut to the managed WireGuard tunnels collection.</summary>
+    public IReadOnlyList<TunnelConfig> Tunnels
+    {
+        get { lock (_lock) return _profile.Tunnels.AsReadOnly(); }
+    }
+
+    /// <summary>Adds (or replaces by name) a managed tunnel and persists.</summary>
+    public TunnelConfig AddTunnel(TunnelConfig tunnel)
+    {
+        ArgumentNullException.ThrowIfNull(tunnel);
+        ArgumentException.ThrowIfNullOrWhiteSpace(tunnel.Name);
+
+        lock (_lock)
+        {
+            _profile.Tunnels.RemoveAll(t => t.Name.Equals(tunnel.Name, StringComparison.OrdinalIgnoreCase));
+            _profile.Tunnels.Add(tunnel);
+        }
+
+        Save();
+        _logger?.LogInformation("Tunnel added: {Name}", tunnel.Name);
+        return tunnel;
+    }
+
+    /// <summary>Updates an existing tunnel in-place and persists.</summary>
+    public void UpdateTunnel(TunnelConfig updated)
+    {
+        ArgumentNullException.ThrowIfNull(updated);
+
+        lock (_lock)
+        {
+            var idx = _profile.Tunnels.FindIndex(t => t.Id == updated.Id);
+            if (idx < 0) return;
+            _profile.Tunnels[idx] = updated;
+        }
+
+        Save();
+    }
+
+    /// <summary>Removes a tunnel by ID and persists.</summary>
+    public void RemoveTunnel(string tunnelId)
+    {
+        lock (_lock)
+        {
+            _profile.Tunnels.RemoveAll(t => t.Id == tunnelId);
+        }
+
+        Save();
+    }
+
     /// <summary>
     /// Adds a new binding rule and immediately persists the profile.
     /// </summary>

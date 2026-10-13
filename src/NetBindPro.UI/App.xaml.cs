@@ -56,6 +56,7 @@ public partial class App : Application
         services.AddSingleton<ProfileService>();
         services.AddSingleton<InjectionService>();
         services.AddSingleton<ProcessMonitorService>();
+        services.AddSingleton<WireGuardService>();
 
         // ViewModels
         services.AddSingleton<MainViewModel>();
@@ -67,6 +68,7 @@ public partial class App : Application
         // Pages
         services.AddTransient<RulesPage>();
         services.AddTransient<AdaptersPage>();
+        services.AddTransient<TunnelsPage>();
         services.AddTransient<ProcessesPage>();
         services.AddTransient<LogPage>();
         services.AddTransient<SettingsPage>();

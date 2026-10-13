@@ -7,6 +7,24 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [Unreleased] — Multi-tunnel manager (v2.1 MVP)
+
+### Added
+- **WireGuard tunnel manager** — a new *Tunnels* page to import `.conf` files, bring
+  tunnels up/down as Windows tunnel services (each becomes its own wintun adapter),
+  see live status, and check each tunnel's public exit IP. (`WireGuardService`,
+  `TunnelConfig`, `TunnelsPage`)
+- **Auto-download WireGuard** — if WireGuard for Windows is missing, the app can
+  download and run the official installer from the Tunnels page.
+- `BindingRule.TunnelName` — groundwork for resolving a rule's adapter from a tunnel
+  by name (stable across tunnel re-creation); UI wiring lands in a later build.
+
+### Notes
+- Tunnels appear in the *Add Rule* adapter list once running, so a process can already
+  be assigned to a specific tunnel today.
+
+---
+
 ## [2.0.2] — 2026-10-14
 
 ### Added

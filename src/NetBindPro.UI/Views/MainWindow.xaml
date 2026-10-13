@@ -80,6 +80,14 @@
                                     <TextBlock Text="Adapters" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
+                            <Button Style="{StaticResource NavButton}" Tag="Tunnels" Click="Nav_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE945;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                               VerticalAlignment="Center" Margin="0,0,10,0"
+                                               Foreground="{StaticResource Text3Brush}"/>
+                                    <TextBlock Text="Tunnels" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                             <Button Style="{StaticResource NavButton}" Tag="Processes" Click="Nav_Click">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE9D9;" FontFamily="Segoe MDL2 Assets" FontSize="14"

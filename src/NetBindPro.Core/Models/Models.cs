@@ -25,6 +25,13 @@ public sealed class BindingRule
     /// <summary>Human-readable name of the adapter, stored for display even if adapter goes offline.</summary>
     public string AdapterName { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Optional name of a managed WireGuard tunnel this rule targets. When set, the
+    /// adapter is resolved from the tunnel by name at injection time (more stable than
+    /// <see cref="AdapterId"/>, which changes if the tunnel is re-created).
+    /// </summary>
+    public string? TunnelName { get; set; }
+
     /// <summary>Whether this rule is currently active.</summary>
     public bool IsEnabled { get; set; } = true;
 
@@ -69,12 +76,57 @@ public sealed class AppSettings
 }
 
 /// <summary>
-/// Root object for the persisted profile (rules + settings).
+/// A managed WireGuard tunnel. The .conf file lives under
+/// <c>%APPDATA%\NetBindPro\tunnels\</c> and is brought up as a Windows tunnel
+/// service, which creates a wintun adapter named after <see cref="Name"/>.
+/// </summary>
+public sealed class TunnelConfig
+{
+    /// <summary>Stable identifier for this tunnel.</summary>
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+
+    /// <summary>
+    /// Tunnel name — also the wintun adapter name and the service suffix
+    /// (<c>WireGuardTunnel$&lt;Name&gt;</c>). Must be a valid interface name.
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Full path to the managed .conf file on disk.</summary>
+    public string ConfigPath { get; set; } = string.Empty;
+
+    /// <summary>Endpoint (host:port) parsed from the config, for display only.</summary>
+    public string? Endpoint { get; set; }
+
+    /// <summary>Interface address(es) parsed from the config, for display only.</summary>
+    public string? Address { get; set; }
+
+    /// <summary>Bring this tunnel up automatically when NetBind Pro starts.</summary>
+    public bool AutoStart { get; set; }
+
+    /// <summary>UTC timestamp when this tunnel was imported.</summary>
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Live runtime status of a managed tunnel (not persisted).
+/// </summary>
+public enum TunnelState
+{
+    Unknown,
+    Stopped,
+    Starting,
+    Running,
+    Error
+}
+
+/// <summary>
+/// Root object for the persisted profile (rules + settings + tunnels).
 /// </summary>
 public sealed class AppProfile
 {
     public string SchemaVersion { get; set; } = "2.0";
     public List<BindingRule> Rules { get; set; } = [];
+    public List<TunnelConfig> Tunnels { get; set; } = [];
     public AppSettings Settings { get; set; } = new();
 }
 

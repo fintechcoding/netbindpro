@@ -35,7 +35,7 @@ public partial class MainWindow : Window
         // Deactivate all nav buttons
         foreach (var child in FindVisualChildren<System.Windows.Controls.Button>(this))
         {
-            if (child.Tag is string tag && new[] { "Rules", "Adapters", "Processes", "Log", "Settings" }.Contains(tag))
+            if (child.Tag is string tag && new[] { "Rules", "Adapters", "Tunnels", "Processes", "Log", "Settings" }.Contains(tag))
                 child.IsEnabled = true;
         }
 
@@ -43,6 +43,7 @@ public partial class MainWindow : Window
         {
             "Rules"     => App.GetService<RulesPage>(),
             "Adapters"  => App.GetService<AdaptersPage>(),
+            "Tunnels"   => App.GetService<TunnelsPage>(),
             "Processes" => App.GetService<ProcessesPage>(),
             "Log"       => App.GetService<LogPage>(),
             "Settings"  => App.GetService<SettingsPage>(),
