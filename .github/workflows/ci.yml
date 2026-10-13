@@ -15,41 +15,14 @@ env:
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────
+  # Validation build on every push / PR.
   build:
     name: Build
     runs-on: windows-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Restore NuGet packages
-        run: dotnet restore ${{ env.SOLUTION }}
-
-      - name: Build (x64)
-        run: |
-          dotnet build ${{ env.SOLUTION }} `
-            --configuration ${{ env.CONFIGURATION }} `
-            --no-restore `
-            /p:Platform=x64
-
-  # ─────────────────────────────────────────────────────────────────────────
-  publish:
-    name: Publish
-    runs-on: windows-latest
-    needs: build
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -59,91 +32,72 @@ jobs:
       - name: Restore
         run: dotnet restore ${{ env.SOLUTION }}
 
-      - name: Publish UI (self-contained, x64)
-        run: |
-          dotnet publish src/NetBindPro.UI/NetBindPro.UI.csproj `
-            --configuration Release `
-            --runtime win-x64 `
-            --self-contained false `
-            --output publish/win-x64 `
-            /p:Platform=x64 `
-            /p:PublishSingleFile=false
+      - name: Build (x64)
+        run: dotnet build ${{ env.SOLUTION }} --configuration ${{ env.CONFIGURATION }} --no-restore /p:Platform=x64
 
-      - name: Publish Hook x64
-        run: |
-          dotnet publish src/NetBindPro.Hook/NetBindPro.Hook.csproj `
-            --configuration Release `
-            --runtime win-x64 `
-            --self-contained false `
-            --output publish/win-x64 `
-            /p:Platform=x64
+  # ─────────────────────────────────────────────────────────────────────────
+  # On a version tag: build the real artifacts, make the installer, publish it.
+  release:
+    name: Build installer & publish release
+    runs-on: windows-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Publish Hook x86
-        run: |
-          dotnet publish src/NetBindPro.Hook/NetBindPro.Hook.csproj `
-            --configuration Release `
-            --runtime win-x86 `
-            --self-contained false `
-            --output publish/win-x86 `
-            /p:Platform=x86
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Copy Hook x86 to output
-        run: |
-          Copy-Item publish/win-x86/NetBindPro.Hook.exe `
-            publish/win-x64/NetBindPro.Hook.x86.exe
+      - name: Restore
+        run: dotnet restore ${{ env.SOLUTION }}
 
-      - name: Build Installer (Inno Setup)
+      # UI: self-contained .NET 8 — the runtime is bundled, users install nothing else.
+      - name: Publish UI (self-contained net8, x64)
+        run: >
+          dotnet publish src/NetBindPro.UI/NetBindPro.UI.csproj
+          --configuration Release --runtime win-x64 --self-contained true
+          --output publish/win-x64 /p:Platform=x64
+
+      # Hook: .NET Framework 4.8 (EasyHook can only inject a Framework payload).
+      # net48 is present on all Windows 10/11, so nothing is bundled for it.
+      - name: Build Hook (net48, x64)
+        run: dotnet build src/NetBindPro.Hook/NetBindPro.Hook.csproj --configuration Release /p:Platform=x64
+
+      - name: Copy Hook x64 output (exe + EasyHook natives) next to UI
+        shell: pwsh
+        run: Copy-Item src/NetBindPro.Hook/bin/x64/Release/net48/* publish/win-x64 -Recurse -Force
+
+      - name: Build Hook (net48, x86)
+        run: dotnet build src/NetBindPro.Hook/NetBindPro.Hook.csproj --configuration Release /p:Platform=x86
+
+      - name: Copy Hook x86 output into x86 subfolder
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path publish/win-x64/x86 -Force | Out-Null
+          Copy-Item src/NetBindPro.Hook/bin/x86/Release/net48/* publish/win-x64/x86 -Recurse -Force
+
+      - name: Build installer (Inno Setup)
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
           path: installer/NetBindPro.Setup.iss
           options: /O"publish/installer"
 
-      - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: NetBindPro-installer
-          path: publish/installer/*.exe
-          retention-days: 30
-
-      - name: Upload portable artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: NetBindPro-portable-win-x64
-          path: publish/win-x64/
-          retention-days: 30
-
-  # ─────────────────────────────────────────────────────────────────────────
-  release:
-    name: GitHub Release
-    runs-on: windows-latest
-    needs: publish
-    if: startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download installer
-        uses: actions/download-artifact@v4
-        with:
-          name: NetBindPro-installer
-          path: dist/
-
-      - name: Get version from tag
-        id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+      - name: Extract release notes for this version
         shell: bash
+        run: awk '/^## \[/{c++} c==1{print} c==2{exit}' CHANGELOG.md > RELEASE_NOTES.md
 
-      - name: Create Release
+      - name: Create / update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: "NetBind Pro v${{ steps.version.outputs.version }}"
-          body_path: CHANGELOG.md
+          name: "NetBind Pro ${{ github.ref_name }}"
+          body_path: RELEASE_NOTES.md
           draft: false
-          prerelease: ${{ contains(github.ref, '-beta') || contains(github.ref, '-rc') }}
+          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}
           files: |
-            dist/*.exe
+            publish/installer/*.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

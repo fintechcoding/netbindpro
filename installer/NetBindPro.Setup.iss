@@ -3,7 +3,7 @@
 ; Run: ISCC.exe NetBindPro.Setup.iss
 
 #define AppName        "NetBind Pro"
-#define AppVersion     "2.3.0"
+#define AppVersion     "2.3.1"
 #define AppPublisher   "NetBind Pro Contributors"
 #define AppURL         "https://github.com/fintechcoding/netbindpro"
 #define AppExeName     "NetBindPro.exe"
@@ -37,6 +37,10 @@ MinVersion=10.0.17763
 UninstallDisplayIcon={app}\{#AppExeName}
 UninstallDisplayName={#AppName}
 ChangesAssociations=no
+; Make sure a running instance (incl. the system-tray process) can't lock files
+; during the upgrade — otherwise a half-replaced install fails to launch.
+CloseApplications=force
+RestartApplications=no
 
 ; Registry key for Hook.exe path (used by Shell Extension)
 [Registry]
@@ -79,4 +83,16 @@ Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName}"; \
 ; Kill running instances before uninstalling
 Filename: "{cmd}"; Parameters: "/C taskkill /F /IM {#AppExeName} 2>NUL"; Flags: runhidden; RunOnceId: "KillApp"
 
-; No [Code] .NET runtime check needed — the runtime is bundled (self-contained).
+[Code]
+// Forcibly terminate any running NetBind Pro processes before copying files,
+// so a tray instance from a previous version can't leave a half-replaced,
+// non-launchable install. Runs just before the [Files] step.
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  Exec(ExpandConstant('{cmd}'),
+    '/C taskkill /F /IM {#AppExeName} /IM {#HookExeName} /IM {#HookExeName86} 2>NUL',
+    '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Result := '';
+end;

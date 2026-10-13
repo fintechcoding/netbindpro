@@ -26,22 +26,74 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        // Build DI container
-        _services = ConfigureServices().BuildServiceProvider();
+        // Surface any otherwise-silent failure instead of a process that never shows a window.
+        AppDomain.CurrentDomain.UnhandledException += (_, ex) =>
+            ReportFatal("A fatal error occurred.", ex.ExceptionObject as Exception);
+        DispatcherUnhandledException += (_, ex) =>
+        {
+            ReportFatal("A fatal error occurred.", ex.Exception);
+            ex.Handled = true;
+        };
+        System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, ex) =>
+        {
+            LogCrash("Unobserved task exception", ex.Exception);
+            ex.SetObserved();
+        };
 
-        // Start background services
-        _services.GetRequiredService<ProcessMonitorService>().Start();
+        try
+        {
+            // Build DI container
+            _services = ConfigureServices().BuildServiceProvider();
 
-        // Bring up any tunnels flagged auto-start (non-blocking).
-        _ = StartAutoStartTunnelsAsync();
+            // Start background services
+            _services.GetRequiredService<ProcessMonitorService>().Start();
 
-        // System tray icon
-        InitTrayIcon();
+            // Bring up any tunnels flagged auto-start (non-blocking).
+            _ = StartAutoStartTunnelsAsync();
 
-        // Show main window unless started minimized
-        bool startMinimized = e.Args.Contains("--minimized");
-        if (!startMinimized)
-            ShowMainWindow();
+            // System tray icon
+            InitTrayIcon();
+
+            // Show main window unless started minimized
+            bool startMinimized = e.Args.Contains("--minimized");
+            if (!startMinimized)
+                ShowMainWindow();
+        }
+        catch (Exception ex)
+        {
+            ReportFatal("NetBind Pro failed to start.", ex);
+            Shutdown(1);
+        }
+    }
+
+    // ─── Crash reporting ─────────────────────────────────────────────────────
+
+    private static string CrashLogPath => System.IO.Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "NetBindPro", "crash.log");
+
+    private static void LogCrash(string context, Exception? ex)
+    {
+        try
+        {
+            var path = CrashLogPath;
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path)!);
+            System.IO.File.AppendAllText(path,
+                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {context}{Environment.NewLine}{ex}{Environment.NewLine}{Environment.NewLine}");
+        }
+        catch { /* best-effort */ }
+    }
+
+    private static void ReportFatal(string context, Exception? ex)
+    {
+        LogCrash(context, ex);
+        try
+        {
+            System.Windows.MessageBox.Show(
+                $"{context}\n\n{ex?.Message}\n\nDetails were written to:\n{CrashLogPath}",
+                "NetBind Pro", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        catch { /* headless */ }
     }
 
     // ─── Auto-start tunnels ──────────────────────────────────────────────────

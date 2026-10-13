@@ -7,6 +7,24 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [2.3.1] — 2026-10-14
+
+### Fixed
+- **"Installed but won't start"** — upgrading while a previous version was still running
+  (it stays in the system tray) left files locked, so the installer could only half-replace
+  them and the result failed to launch. The installer now force-closes any running NetBind
+  Pro and kills lingering `NetBindPro.exe`/`NetBindPro.Hook.exe` before copying files.
+- **Startup is now self-diagnosing** — a global crash handler writes
+  `%LOCALAPPDATA%\NetBindPro\crash.log` and shows the error instead of the process silently
+  dying with no window.
+
+### Build
+- Rewrote the GitHub Actions workflow for the current layout (self-contained .NET 8 UI +
+  .NET Framework 4.8 Hook) so a pushed `v*` tag builds the installer and publishes the
+  release on GitHub's runners — avoiding flaky large-file uploads.
+
+---
+
 ## [2.3.0] — 2026-10-14 — Injection fixed
 
 ### Fixed

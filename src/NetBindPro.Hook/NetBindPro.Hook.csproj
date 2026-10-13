@@ -27,6 +27,12 @@
          as contentFiles that copy to the output folder for a .NET Framework TFM. -->
     <PackageReference Include="EasyHook" Version="2.7.7097" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+    <!-- Lets the .NET SDK build this net48 project without a machine-wide
+         .NET Framework targeting pack (needed on clean CI runners). -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
 </Project>
