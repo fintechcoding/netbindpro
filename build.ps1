@@ -104,19 +104,19 @@ if ($Publish -or $Installer) {
     New-Item -ItemType Directory -Path $PublishDir -Force | Out-Null
 
     dotnet publish "src\NetBindPro.UI\NetBindPro.UI.csproj" `
-        --configuration Release --runtime win-x64 --no-self-contained `
+        --configuration Release --runtime win-x64 --self-contained `
         --output $PublishDir /p:Platform=x64
     Assert-ExitCode
 
     dotnet publish "src\NetBindPro.Hook\NetBindPro.Hook.csproj" `
-        --configuration Release --runtime win-x64 --no-self-contained `
+        --configuration Release --runtime win-x64 --self-contained `
         --output $PublishDir /p:Platform=x64
     Assert-ExitCode
 
     # Build x86 Hook and copy alongside x64 output
     $Publish86Dir = "publish\win-x86"
     dotnet publish "src\NetBindPro.Hook\NetBindPro.Hook.csproj" `
-        --configuration Release --runtime win-x86 --no-self-contained `
+        --configuration Release --runtime win-x86 --self-contained `
         --output $Publish86Dir /p:Platform=x86
     Assert-ExitCode
 

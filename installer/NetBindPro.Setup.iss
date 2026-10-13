@@ -3,7 +3,7 @@
 ; Run: ISCC.exe NetBindPro.Setup.iss
 
 #define AppName        "NetBind Pro"
-#define AppVersion     "2.1.0"
+#define AppVersion     "2.1.1"
 #define AppPublisher   "NetBind Pro Contributors"
 #define AppURL         "https://github.com/fintechcoding/netbindpro"
 #define AppExeName     "NetBindPro.exe"
@@ -56,15 +56,11 @@ Name: "startup";    Description: "Start NetBind Pro with Windows"; GroupDescript
 Name: "desktopicon"; Description: "Create a &desktop shortcut";   GroupDescription: "Additional icons:"
 
 [Files]
-; Main UI executable
-Source: "{#SourceDir}\{#AppExeName}";         DestDir: "{app}"; Flags: ignoreversion
-; Hook engine (x64)
-Source: "{#SourceDir}\{#HookExeName}";        DestDir: "{app}"; Flags: ignoreversion
-; Hook engine (x86) — required for injecting into 32-bit target processes
-Source: "{#SourceDir}\{#HookExeName86}";      DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
-; .NET runtime dependencies
-Source: "{#SourceDir}\*.dll";                  DestDir: "{app}"; Flags: ignoreversion recursesubdirs
-Source: "{#SourceDir}\*.json";                 DestDir: "{app}"; Flags: ignoreversion
+; Self-contained build: ship the entire publish folder, including the bundled
+; .NET 8 Desktop Runtime, the x64/x86 Hook engines and all dependencies. No
+; separate .NET install is required on the target machine.
+Source: "{#SourceDir}\*"; DestDir: "{app}"; \
+  Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#AppName}";                FileName: "{app}\{#AppExeName}"
@@ -80,34 +76,4 @@ Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName}"; \
 ; Kill running instances before uninstalling
 Filename: "{cmd}"; Parameters: "/C taskkill /F /IM {#AppExeName} 2>NUL"; Flags: runhidden; RunOnceId: "KillApp"
 
-[Code]
-// Check for .NET 8 runtime before installing
-function IsDotNet8Installed(): Boolean;
-var
-  Version: String;
-begin
-  Result := RegQueryStringValue(HKLM,
-    'SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App',
-    '8.0.0', Version);
-  if not Result then
-    Result := RegQueryStringValue(HKLM,
-      'SOFTWARE\WOW6432Node\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App',
-      '8.0.0', Version);
-end;
-
-function InitializeSetup(): Boolean;
-var
-  ErrorCode: Integer;
-begin
-  Result := True;
-  if not IsDotNet8Installed() then
-  begin
-    if MsgBox('.NET 8 Desktop Runtime is required but not installed.' + #13#10 +
-              'Do you want to open the download page?',
-              mbConfirmation, MB_YESNO) = IDYES then
-      ShellExec('open',
-        'https://dotnet.microsoft.com/download/dotnet/8.0',
-        '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
-    Result := False;
-  end;
-end;
+; No [Code] .NET runtime check needed — the runtime is bundled (self-contained).

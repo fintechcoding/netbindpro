@@ -7,6 +7,15 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [2.1.1] — 2026-10-14
+
+### Changed
+- **Self-contained installer** — the .NET 8 Desktop Runtime is now bundled inside the
+  installer. No separate runtime download is required, and the installer no longer shows
+  a ".NET 8 required" prompt (which could misfire even when a runtime was installed).
+
+---
+
 ## [2.1.0] — 2026-10-14 — Multi-tunnel manager
 
 ### Added
