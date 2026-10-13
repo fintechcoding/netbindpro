@@ -3,7 +3,7 @@
 ; Run: ISCC.exe NetBindPro.Setup.iss
 
 #define AppName        "NetBind Pro"
-#define AppVersion     "2.2.0"
+#define AppVersion     "2.2.1"
 #define AppPublisher   "NetBind Pro Contributors"
 #define AppURL         "https://github.com/fintechcoding/netbindpro"
 #define AppExeName     "NetBindPro.exe"
@@ -69,8 +69,11 @@ Name: "{commondesktop}\{#AppName}";        FileName: "{app}\{#AppExeName}"; Task
 Name: "{userstartup}\{#AppName}";          FileName: "{app}\{#AppExeName}"; Parameters: "--minimized"; Tasks: startup
 
 [Run]
+; shellexec so the requireAdministrator app launches via ShellExecute (handles the
+; UAC elevation). Without it, Inno runs the post-install launch as the original,
+; non-elevated user and CreateProcess fails with code 740 (elevation required).
 Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName}"; \
-  Flags: nowait postinstall skipifsilent
+  Flags: nowait postinstall skipifsilent shellexec
 
 [UninstallRun]
 ; Kill running instances before uninstalling

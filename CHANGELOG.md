@@ -7,6 +7,16 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [2.2.1] — 2026-10-14
+
+### Fixed
+- **Post-install launch** — the installer's "Launch NetBind Pro" step failed with
+  `CreateProcess failed; code 740 (requires elevation)` because the app requires admin
+  and Inno Setup ran the launch as the original non-elevated user. Added the `shellexec`
+  flag so it launches via ShellExecute and elevates correctly.
+
+---
+
 ## [2.2.0] — 2026-10-14
 
 ### Added
