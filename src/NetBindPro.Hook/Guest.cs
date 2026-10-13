@@ -35,6 +35,10 @@ public sealed class Guest : IEntryPoint
     private readonly Dictionary<IntPtr, bool> _boundSockets = [];
     private readonly object _socketsLock = new();
 
+    // ─── Winsock constants (kill-switch) ────────────────────────────────────
+    private const int SOCKET_ERROR   = -1;
+    private const int WSAENETUNREACH = 10051; // "Network is unreachable"
+
     // ─── Constructor ────────────────────────────────────────────────────────
 
     // ReSharper disable once UnusedParameter.Local
@@ -180,9 +184,16 @@ public sealed class Guest : IEntryPoint
         var result = TryBindToAdapter(s, fam, port);
 
         if (result == 0)
+        {
+            // Mark bound so the later connect() hook won't try to re-bind (which would
+            // fail with WSAEINVAL and wrongly trip the kill-switch on a valid socket).
+            lock (_socketsLock) { _boundSockets[s] = true; }
             Log("bind", $"Socket {s:X} rebound to adapter on port {port}");
+        }
         else
+        {
             Log("bind", $"Socket {s:X} rebind failed, falling through");
+        }
 
         NativeWinsock.WSASetLastError(lastErr);
         return result != 0 ? NativeWinsock.bind(s, name, namelen) : result;
@@ -192,7 +203,13 @@ public sealed class Guest : IEntryPoint
 
     private int OnConnect(IntPtr s, IntPtr name, int namelen)
     {
-        EnsureBound(s, name);
+        if (!EnsureBound(s, name))
+        {
+            // Kill-switch: the target adapter is down / has no usable IP.
+            // Refuse the connection instead of leaking it out the default route.
+            NativeWinsock.WSASetLastError(WSAENETUNREACH);
+            return SOCKET_ERROR;
+        }
         return NativeWinsock.connect(s, name, namelen);
     }
 
@@ -201,7 +218,11 @@ public sealed class Guest : IEntryPoint
     private int OnWSAConnect(IntPtr s, IntPtr name, int namelen,
         IntPtr lpCallerData, IntPtr lpCalleeData, IntPtr lpSQOS, IntPtr lpGQOS)
     {
-        EnsureBound(s, name);
+        if (!EnsureBound(s, name))
+        {
+            NativeWinsock.WSASetLastError(WSAENETUNREACH);
+            return SOCKET_ERROR;
+        }
         return NativeWinsock.WSAConnect(s, name, namelen, lpCallerData, lpCalleeData, lpSQOS, lpGQOS);
     }
 
@@ -276,26 +297,37 @@ public sealed class Guest : IEntryPoint
     // ─── Binding logic ───────────────────────────────────────────────────────
 
     /// <summary>
-    /// If this socket hasn't been bound yet, bind it to the adapter's IP address.
-    /// Called just before connect() / WSAConnect() so the OS routes it correctly.
+    /// Ensures this socket is bound to the adapter's IP address before it connects.
+    /// Returns <c>true</c> when the socket is safe to connect (bound to the adapter,
+    /// or a destination that is intentionally left alone such as loopback/multicast),
+    /// and <c>false</c> when binding failed — in which case the caller must BLOCK the
+    /// connection rather than let it leak out the default route (kill-switch).
+    /// Called just before connect() / WSAConnect().
     /// </summary>
-    private void EnsureBound(IntPtr s, IntPtr name)
+    private bool EnsureBound(IntPtr s, IntPtr name)
     {
         bool alreadyBound;
         lock (_socketsLock)
             alreadyBound = _boundSockets.TryGetValue(s, out var v) && v;
 
-        if (alreadyBound) return;
+        if (alreadyBound) return true;
 
         var fam = ReadAddressFamily(name);
-        if (ShouldSkip(name, fam)) return;
+        if (ShouldSkip(name, fam)) return true; // loopback / multicast / link-local pass through
 
         var result = TryBindToAdapter(s, fam, port: 0);
 
         lock (_socketsLock)
             _boundSockets[s] = result == 0;
 
-        Log("EnsureBound", $"Socket {s:X} auto-bound result={result}");
+        if (result == 0)
+        {
+            Log("EnsureBound", $"Socket {s:X} auto-bound to adapter");
+            return true;
+        }
+
+        Log("EnsureBound", $"Socket {s:X} bind FAILED (adapter down / no IP) — BLOCKING to prevent leak");
+        return false;
     }
 
     /// <summary>

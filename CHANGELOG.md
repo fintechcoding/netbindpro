@@ -7,6 +7,23 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Leak kill-switch** — if the target adapter is down or has no usable IP, the hook now
+  refuses outbound `connect`/`WSAConnect` (returns `WSAENETUNREACH`) instead of letting the
+  connection fall back to the default route. A bound app stays on its tunnel or goes nowhere.
+- **Tunnel exit-IP check** — the Add Rule dialog can verify a selected adapter's public exit
+  IP (and country) from inside the app, by binding the request to the adapter's local IP and
+  querying an IP-echo endpoint. No browser or external site needed. (`EgressCheckService`)
+
+### Known limitations (tracked for a kernel-level pass)
+- The kill-switch covers sockets created after injection. Sockets already open before
+  injection, and DNS resolved by the system service, are not yet guarded — that needs a
+  WFP per-app filter (planned).
+
+---
+
 ## [2.0.1] — 2026-10-14
 
 ### Added

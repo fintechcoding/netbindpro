@@ -1,7 +1,7 @@
 <Window x:Class="NetBindPro.UI.Views.AddRuleWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Add Binding Rule" Height="660" Width="520"
+        Title="Add Binding Rule" Height="710" Width="520"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
     <Border CornerRadius="10" Background="White"
@@ -164,6 +164,27 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+
+                    <!-- Tunnel exit IP check -->
+                    <Border Margin="0,10,0,0" CornerRadius="8" Background="{StaticResource Bg1Brush}"
+                            BorderBrush="#E0E0E0" BorderThickness="1" Padding="14,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0">
+                                <TextBlock Text="Tunnel exit IP" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="#1A1A1A"/>
+                                <TextBlock x:Name="EgressResultText"
+                                           Text="Select an adapter above, then verify its public exit IP."
+                                           FontSize="11" Foreground="#999" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                            </StackPanel>
+                            <Button x:Name="CheckIpButton" Grid.Column="1"
+                                    Style="{StaticResource GhostButton}" Content="Check IP"
+                                    VerticalAlignment="Center" Click="CheckIp_Click"/>
+                        </Grid>
+                    </Border>
 
                     <!-- Auto inject -->
                     <Border Background="{StaticResource Bg1Brush}" CornerRadius="8"

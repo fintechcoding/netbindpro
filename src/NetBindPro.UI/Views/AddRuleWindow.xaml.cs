@@ -51,6 +51,44 @@ public partial class AddRuleWindow : Window
         foreach (var item in _adapterVms) item.IsSelected = false;
         vm.IsSelected   = true;
         _selectedAdapter = vm.Adapter;
+
+        EgressResultText.Text = $"Ready to check {_selectedAdapter.Name}'s public exit IP.";
+    }
+
+    // ─── Tunnel exit IP check ───────────────────────────────────────────────
+
+    private async void CheckIp_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedAdapter == null)
+        {
+            EgressResultText.Text = "Pick an adapter first.";
+            return;
+        }
+
+        CheckIpButton.IsEnabled = false;
+        EgressResultText.Text   = $"Checking via {_selectedAdapter.Name}…";
+
+        try
+        {
+            var r = await EgressCheckService.CheckAsync(_selectedAdapter);
+            if (r.Success)
+            {
+                var country = string.IsNullOrEmpty(r.Country) ? "" : $"  ({r.Country})";
+                EgressResultText.Text = $"Exit IP: {r.PublicIp}{country}  ·  {r.ElapsedMs} ms";
+            }
+            else
+            {
+                EgressResultText.Text = $"Failed: {r.Error}";
+            }
+        }
+        catch (Exception ex)
+        {
+            EgressResultText.Text = $"Failed: {ex.Message}";
+        }
+        finally
+        {
+            CheckIpButton.IsEnabled = true;
+        }
     }
 
     // ─── Running process picker ─────────────────────────────────────────────
