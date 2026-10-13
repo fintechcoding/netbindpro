@@ -7,7 +7,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
-## [Unreleased]
+## [2.0.2] — 2026-10-14
 
 ### Added
 - **Leak kill-switch** — if the target adapter is down or has no usable IP, the hook now
