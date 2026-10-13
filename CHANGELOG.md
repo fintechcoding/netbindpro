@@ -7,6 +7,24 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [2.0.1] — 2026-10-14
+
+### Added
+- **Running-process picker** in the Add Binding Rule dialog — search and select a live
+  process (e.g. firefox.exe, chrome.exe) instead of typing the executable name by hand;
+  the full path is captured automatically for precise matching.
+
+### Changed
+- Add Rule dialog surfaces VPN / tunnel adapters first, since routing an app through a
+  tunnel is the primary use case.
+
+### Fixed
+- Installer script: corrected relative source/output paths (`..\` instead of `..\..\`),
+  fixed the icon path (`app.ico`), bundled the x86 Hook executable, fixed a `ShellExec`
+  compile error in the `[Code]` section, and pointed project URLs at the correct repository.
+
+---
+
 ## [2.0.0] — 2024-12-01
 
 ### Added

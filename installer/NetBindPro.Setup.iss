@@ -3,13 +3,14 @@
 ; Run: ISCC.exe NetBindPro.Setup.iss
 
 #define AppName        "NetBind Pro"
-#define AppVersion     "2.0.0"
+#define AppVersion     "2.0.1"
 #define AppPublisher   "NetBind Pro Contributors"
-#define AppURL         "https://github.com/codingsecurity/netbindpro"
+#define AppURL         "https://github.com/fintechcoding/netbindpro"
 #define AppExeName     "NetBindPro.exe"
 #define HookExeName    "NetBindPro.Hook.exe"
-#define OutputDir      "..\..\publish\installer"
-#define SourceDir      "..\..\publish\win-x64"
+#define HookExeName86  "NetBindPro.Hook.x86.exe"
+#define OutputDir      "..\publish\installer"
+#define SourceDir      "..\publish\win-x64"
 
 [Setup]
 AppId={{8B7C1A2D-3E4F-5A6B-7C8D-9E0F1A2B3C4D}
@@ -22,16 +23,16 @@ AppUpdatesURL={#AppURL}/releases
 DefaultDirName={autopf}\NetBind Pro
 DefaultGroupName={#AppName}
 AllowNoIcons=yes
-LicenseFile=..\..\LICENSE
+LicenseFile=..\LICENSE
 OutputDir={#OutputDir}
 OutputBaseFilename=NetBindPro-{#AppVersion}-Setup
-SetupIconFile=..\..\src\NetBindPro.UI\Assets\icon.ico
+SetupIconFile=..\src\NetBindPro.UI\app.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=admin
-ArchitecturesAllowed=x64
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
 UninstallDisplayIcon={app}\{#AppExeName}
 UninstallDisplayName={#AppName}
@@ -57,8 +58,10 @@ Name: "desktopicon"; Description: "Create a &desktop shortcut";   GroupDescripti
 [Files]
 ; Main UI executable
 Source: "{#SourceDir}\{#AppExeName}";         DestDir: "{app}"; Flags: ignoreversion
-; Hook engine (both x86 and x64)
+; Hook engine (x64)
 Source: "{#SourceDir}\{#HookExeName}";        DestDir: "{app}"; Flags: ignoreversion
+; Hook engine (x86) — required for injecting into 32-bit target processes
+Source: "{#SourceDir}\{#HookExeName86}";      DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 ; .NET runtime dependencies
 Source: "{#SourceDir}\*.dll";                  DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 Source: "{#SourceDir}\*.json";                 DestDir: "{app}"; Flags: ignoreversion
@@ -75,7 +78,7 @@ Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName}"; \
 
 [UninstallRun]
 ; Kill running instances before uninstalling
-Filename: "{cmd}"; Parameters: "/C taskkill /F /IM {#AppExeName} 2>NUL"; Flags: runhidden
+Filename: "{cmd}"; Parameters: "/C taskkill /F /IM {#AppExeName} 2>NUL"; Flags: runhidden; RunOnceId: "KillApp"
 
 [Code]
 // Check for .NET 8 runtime before installing
@@ -93,6 +96,8 @@ begin
 end;
 
 function InitializeSetup(): Boolean;
+var
+  ErrorCode: Integer;
 begin
   Result := True;
   if not IsDotNet8Installed() then
@@ -102,7 +107,7 @@ begin
               mbConfirmation, MB_YESNO) = IDYES then
       ShellExec('open',
         'https://dotnet.microsoft.com/download/dotnet/8.0',
-        '', '', SW_SHOWNORMAL, ewNoWait, 0);
+        '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
     Result := False;
   end;
 end;
