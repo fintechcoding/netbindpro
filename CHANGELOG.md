@@ -7,7 +7,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
-## [Unreleased] — Multi-tunnel manager (v2.1 MVP)
+## [2.1.0] — 2026-10-14 — Multi-tunnel manager
 
 ### Added
 - **WireGuard tunnel manager** — a new *Tunnels* page to import `.conf` files, bring
