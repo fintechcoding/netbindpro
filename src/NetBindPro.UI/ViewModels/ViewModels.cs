@@ -135,9 +135,12 @@ public partial class RuleItemVm : ObservableObject
     [RelayCommand]
     private void Edit()
     {
-        // Open edit dialog (reuses AddRuleWindow pre-filled)
-        MessageBox.Show("Edit dialog — implement with pre-filled AddRuleWindow.",
-            "NetBind Pro", MessageBoxButton.OK, MessageBoxImage.Information);
+        // Reuse AddRuleWindow in edit mode, pre-filled from this rule.
+        var dialog = App.GetService<Views.AddRuleWindow>();
+        dialog.Owner = Application.Current?.MainWindow;
+        dialog.LoadForEdit(Rule);
+        dialog.ShowDialog();
+        // The rule list refreshes via ProfileService.RulesChanged (UpdateRule raises it).
     }
 }
 

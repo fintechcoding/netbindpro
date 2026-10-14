@@ -23,6 +23,32 @@ public partial class SettingsPage : Page
         _profile = profile;
         DataContext = vm;
         InitializeComponent();
+
+        VersionText.Text = $"NetBind Pro v{UpdateService.CurrentVersion}";
+    }
+
+    private async void CheckUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        CheckUpdatesButton.IsEnabled = false;
+        UpdateStatusText.Visibility  = Visibility.Visible;
+        UpdateStatusText.Text        = "Checking for updates…";
+        try
+        {
+            // App.CheckForUpdatesAsync prompts to download+install when a newer release
+            // exists; returns false when already up to date.
+            var found = await ((App)Application.Current).CheckForUpdatesAsync(prompt: true);
+            UpdateStatusText.Text = found
+                ? "An update is available."
+                : $"You're on the latest version (v{UpdateService.CurrentVersion}).";
+        }
+        catch (Exception ex)
+        {
+            UpdateStatusText.Text = $"Update check failed: {ex.Message}";
+        }
+        finally
+        {
+            CheckUpdatesButton.IsEnabled = true;
+        }
     }
 
     private void OpenTemp_Click(object sender, RoutedEventArgs e)

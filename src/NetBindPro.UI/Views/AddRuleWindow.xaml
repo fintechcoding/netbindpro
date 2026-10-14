@@ -14,7 +14,7 @@
             <Border DockPanel.Dock="Top" BorderBrush="{StaticResource BorderBrush}"
                     BorderThickness="0,0,0,1" Padding="28,18">
                 <Grid>
-                    <TextBlock Text="Add Binding Rule" FontSize="17" FontWeight="SemiBold"
+                    <TextBlock x:Name="HeaderText" Text="Add Binding Rule" FontSize="17" FontWeight="SemiBold"
                                Foreground="#1A1A1A"/>
                     <Button HorizontalAlignment="Right" Style="{StaticResource IconButton}" Click="Cancel_Click">
                         <TextBlock Text="&#xE106;" FontFamily="Segoe MDL2 Assets" FontSize="11"
@@ -30,7 +30,7 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Style="{StaticResource GhostButton}" Content="Cancel"
                             Click="Cancel_Click" Margin="0,0,12,0"/>
-                    <Button Style="{StaticResource PrimaryButton}" Content="Add Rule" Click="Save_Click"/>
+                    <Button x:Name="SaveButton" Style="{StaticResource PrimaryButton}" Content="Add Rule" Click="Save_Click"/>
                 </StackPanel>
             </Border>
             <!-- Body -->

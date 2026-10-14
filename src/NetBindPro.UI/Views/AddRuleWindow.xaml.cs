@@ -21,6 +21,7 @@ public partial class AddRuleWindow : Window
     private List<ProcessPickVm> _allProcesses = [];
     private ICollectionView?    _processView;
     private string?             _browsedPath;
+    private BindingRule?        _editingRule;   // non-null when editing an existing rule
 
     public AddRuleWindow(ProfileService profile)
     {
@@ -28,6 +29,42 @@ public partial class AddRuleWindow : Window
         InitializeComponent();
         LoadAdapters();
         LoadProcesses();
+    }
+
+    /// <summary>
+    /// Switches the dialog into edit mode, pre-filling it from an existing rule. On save
+    /// the rule is updated in place instead of a new one being added.
+    /// </summary>
+    public void LoadForEdit(BindingRule rule)
+    {
+        _editingRule = rule;
+
+        Title            = "Edit Binding Rule";
+        HeaderText.Text  = "Edit Binding Rule";
+        SaveButton.Content = "Save Changes";
+
+        SearchBox.Text = rule.ProcessName;
+        _browsedPath   = rule.ProcessPath;
+        NotesBox.Text  = rule.Notes ?? string.Empty;
+        KillSwitchCheck.IsChecked = rule.KillSwitch;
+        AutoInjectCheck.IsChecked = rule.AutoInject;
+
+        // Re-select the rule's adapter: prefer a managed tunnel by name (its GUID may
+        // have changed), else match the stored adapter id (brace-insensitive).
+        var wantId = rule.AdapterId.Trim('{', '}');
+        var match = _adapterVms.FirstOrDefault(vm =>
+                        !string.IsNullOrWhiteSpace(rule.TunnelName) &&
+                        vm.Adapter.Name.Equals(rule.TunnelName, StringComparison.OrdinalIgnoreCase))
+                    ?? _adapterVms.FirstOrDefault(vm =>
+                        vm.Adapter.Id.Trim('{', '}').Equals(wantId, StringComparison.OrdinalIgnoreCase));
+
+        if (match != null)
+        {
+            foreach (var item in _adapterVms) item.IsSelected = false;
+            match.IsSelected = true;
+            _selectedAdapter = match.Adapter;
+            EgressResultText.Text = $"Ready to check {_selectedAdapter.Name}'s public exit IP.";
+        }
     }
 
     // ─── Adapters ───────────────────────────────────────────────────────────
@@ -203,16 +240,34 @@ public partial class AddRuleWindow : Window
             .FirstOrDefault(t => t.Name.Equals(_selectedAdapter.Name, StringComparison.OrdinalIgnoreCase))
             ?.Name;
 
-        _profile.AddRule(
-            processName:  processName,
-            adapterId:    _selectedAdapter.Id,
-            adapterName:  _selectedAdapter.Name,
-            processPath:  processPath,
-            notes:        string.IsNullOrWhiteSpace(NotesBox.Text) ? null : NotesBox.Text.Trim(),
-            tunnelName:   tunnelName,
-            killSwitch:   KillSwitchCheck.IsChecked == true,
-            autoInject:   AutoInjectCheck.IsChecked == true
-        );
+        var notes = string.IsNullOrWhiteSpace(NotesBox.Text) ? null : NotesBox.Text.Trim();
+
+        if (_editingRule != null)
+        {
+            // Update the existing rule in place.
+            _editingRule.ProcessName = processName;
+            _editingRule.ProcessPath = processPath;
+            _editingRule.AdapterId   = _selectedAdapter.Id;
+            _editingRule.AdapterName = _selectedAdapter.Name;
+            _editingRule.TunnelName  = tunnelName;
+            _editingRule.Notes       = notes;
+            _editingRule.KillSwitch  = KillSwitchCheck.IsChecked == true;
+            _editingRule.AutoInject  = AutoInjectCheck.IsChecked == true;
+            _profile.UpdateRule(_editingRule);
+        }
+        else
+        {
+            _profile.AddRule(
+                processName:  processName,
+                adapterId:    _selectedAdapter.Id,
+                adapterName:  _selectedAdapter.Name,
+                processPath:  processPath,
+                notes:        notes,
+                tunnelName:   tunnelName,
+                killSwitch:   KillSwitchCheck.IsChecked == true,
+                autoInject:   AutoInjectCheck.IsChecked == true
+            );
+        }
 
         DialogResult = true;
         Close();

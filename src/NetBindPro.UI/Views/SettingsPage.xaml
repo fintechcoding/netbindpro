@@ -151,9 +151,18 @@
                         BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8"
                         Padding="18,16">
                     <StackPanel>
-                        <TextBlock Text="NetBind Pro v2.0.0" Style="{StaticResource TextBase}" FontWeight="SemiBold" FontSize="14"/>
-                        <TextBlock Text="Per-process network adapter binding for Windows 10/11"
-                                   Style="{StaticResource TextMuted}" Margin="0,4,0,0"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock x:Name="VersionText" Text="NetBind Pro" Style="{StaticResource TextBase}" FontWeight="SemiBold" FontSize="14"/>
+                                <TextBlock Text="Per-process network adapter binding for Windows 10/11"
+                                           Style="{StaticResource TextMuted}" Margin="0,4,0,0"/>
+                            </StackPanel>
+                            <Button x:Name="CheckUpdatesButton" Grid.Column="1" Style="{StaticResource GhostButton}"
+                                    Content="Check for updates" Click="CheckUpdates_Click" VerticalAlignment="Center"/>
+                        </Grid>
+                        <TextBlock x:Name="UpdateStatusText" Style="{StaticResource TextHint}" Margin="0,8,0,0"
+                                   Visibility="Collapsed"/>
                         <TextBlock Style="{StaticResource TextHint}" Margin="0,10,0,0">
                             Based on <Hyperlink NavigateUri="https://github.com/falahati/NetworkAdapterSelector"
                                                 RequestNavigate="Hyperlink_Navigate"

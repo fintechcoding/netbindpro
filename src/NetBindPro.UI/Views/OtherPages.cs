@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using NetBindPro.Core.Models;
 using NetBindPro.Core.Services;
+using NetBindPro.UI.Services;
 using NetBindPro.UI.ViewModels;
 
 namespace NetBindPro.UI.Views;
@@ -77,6 +78,38 @@ public partial class ProcessesPage : Page
     }
 
     private void Refresh_Click(object sender, RoutedEventArgs e) => Load();
+
+    // One-off inject from the process list: pick an adapter, then bind the chosen
+    // process (and its injectable siblings, e.g. a browser's network service) to it.
+    private async void Inject_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement fe || fe.DataContext is not ProcessRowVm row) return;
+
+        var adapter = AdapterPickerWindow.Pick(Window.GetWindow(this), row.Name);
+        if (adapter == null) return;
+
+        var injection = App.GetService<InjectionService>();
+
+        // Prefer all injectable PIDs of this name (skips sandboxed browser children that
+        // would crash); fall back to the exact PID the row represents.
+        var pids = InjectionService.GetInjectablePids(row.Name);
+        if (pids.Count == 0) pids = [row.Pid];
+
+        var failures = 0;
+        foreach (var pid in pids)
+        {
+            var result = await injection.InjectAsync(pid, adapter.Id, adapter.Name);
+            if (!result.Success) failures++;
+        }
+
+        if (failures == pids.Count)
+            MessageBox.Show($"Injection failed for '{row.Name}'.", "NetBind Pro",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        else
+            MessageBox.Show($"'{row.Name}' is now bound to {adapter.Name}" +
+                            (failures > 0 ? $" ({failures} of {pids.Count} process(es) failed)." : "."),
+                "NetBind Pro", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
 }
 
 public class ProcessRowVm
