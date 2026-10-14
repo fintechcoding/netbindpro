@@ -9,7 +9,10 @@ on:
   workflow_dispatch:
 
 env:
-  DOTNET_VERSION: '10.0.x'
+  # Pinned to match the locally-verified SDK: a different 10.0 feature band
+  # resolved an out-of-band System.Memory 4.0.1.1 into the self-contained output,
+  # shadowing the framework's 10.0.0.0 and crashing WPF on launch.
+  DOTNET_VERSION: '10.0.202'
   SOLUTION:       'NetBindPro.sln'
   CONFIGURATION:  'Release'
 
@@ -56,7 +59,7 @@ jobs:
         run: dotnet restore ${{ env.SOLUTION }}
 
       # UI: self-contained .NET 8 — the runtime is bundled, users install nothing else.
-      - name: Publish UI (self-contained net8, x64)
+      - name: Publish UI (self-contained net10, x64)
         run: >
           dotnet publish src/NetBindPro.UI/NetBindPro.UI.csproj
           --configuration Release --runtime win-x64 --self-contained true
