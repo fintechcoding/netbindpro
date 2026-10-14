@@ -225,6 +225,17 @@ public sealed class ProfileService
         }
     }
 
+    /// <summary>
+    /// Re-reads the profile from disk, replacing the in-memory copy, and notifies the UI.
+    /// Used after an external change to profile.json (e.g. Import) so a later Save() does
+    /// not overwrite the imported file with stale in-memory data.
+    /// </summary>
+    public void Reload()
+    {
+        Load();
+        OnRulesChanged();
+    }
+
     // ─── Private ────────────────────────────────────────────────────────────
 
     private void Load()

@@ -102,7 +102,11 @@ public partial class SettingsPage : Page
         Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
         File.Copy(dlg.FileName, dest, overwrite: true);
 
-        MessageBox.Show("Profile imported. Restart NetBind Pro to apply changes.", "NetBind Pro",
+        // Re-read it into the running service, otherwise the next Save() would overwrite
+        // the imported file with the stale in-memory profile (silent data loss).
+        _profile.Reload();
+
+        MessageBox.Show("Profile imported and applied.", "NetBind Pro",
             MessageBoxButton.OK, MessageBoxImage.Information);
     }
 

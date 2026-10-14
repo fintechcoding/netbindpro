@@ -7,6 +7,44 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [2.5.0] — 2026-10-15 — Settings that actually do something, and a dozen bug fixes
+
+A detailed review turned up a batch of dead settings and stale-UI bugs. Fixed:
+
+### Settings now take effect
+- **"Monitor new processes"** really starts/stops the auto-bind monitor now (it was
+  always on regardless of the toggle), live on Save and honored at startup.
+- **"Start with Windows"** now registers a logon scheduled task (highest privileges, so
+  the elevated app starts at login without a UAC prompt) — previously it did nothing.
+- **"Debug mode"** now actually passes `--debug` to the hook, so
+  `%TEMP%\NetBindPro-<process>.log` is written and "Open log folder" is useful.
+- **"Show notifications"** now shows a tray balloon when an app is auto-bound (or when it
+  couldn't be).
+- Removed the **"Show adapter in window title"** toggle — it was never implemented.
+
+### UI no longer goes stale / misleads
+- **The in-app Log page shows entries now** (a logging provider forwards events to it; it
+  was permanently empty).
+- **The sidebar highlights the current page** (the active-page code was a no-op).
+- **The status bar refreshes** — active-rule count updates as rules change, the fake
+  "0 injections" became a real "auto-bind: on/off", and the adapter IPs refresh.
+- **The Processes page "ARCH" column shows each process's real bitness** (x86/x64/ARM64)
+  instead of always the OS bitness.
+
+### Correctness / data safety
+- **Importing a profile no longer gets silently overwritten** by the next save — the
+  running app now re-reads the imported file immediately.
+- **Editing a rule whose tunnel is stopped keeps its adapter** instead of forcing a re-pick.
+- **Auto-MTU no longer writes an MTU when the probe fails** (it was persisting 1280 as if
+  chosen).
+- The `socket()` hook no longer tracks a failed (`INVALID_SOCKET`) handle.
+
+### Known limitation
+- The kill-switch covers TCP (connect) but not connectionless UDP (`sendto`) — an app that
+  sends UDP without connecting could still leak. Tracked for a later release.
+
+---
+
 ## [2.4.1] — 2026-10-15 — Fix the rule status toggle
 
 ### Fixed

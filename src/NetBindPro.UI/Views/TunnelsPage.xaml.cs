@@ -182,6 +182,13 @@ public partial class TunnelsPage : Page
         try
         {
             var (ok, mtu, message) = await WireGuardService.ProbeMtuAsync(vm.Tunnel.Endpoint);
+            if (!ok)
+            {
+                // Probe failed (e.g. endpoint blocks ping) — don't silently rewrite the MTU.
+                vm.SetExitIp(message);
+                return;
+            }
+
             _wg.SetMtu(vm.Tunnel, mtu);
             _profile.UpdateTunnel(vm.Tunnel);
 

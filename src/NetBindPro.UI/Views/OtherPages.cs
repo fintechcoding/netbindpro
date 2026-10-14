@@ -126,12 +126,43 @@ public class ProcessRowVm
     {
         Name = p.ProcessName + ".exe";
         Pid  = p.Id;
+        Arch = DetectArch(p.Id);
+    }
+
+    // Real per-PROCESS bitness (the old code reported OS bitness, so everything showed x64).
+    // Injection requires an architecture-matched hook, so this needs to be accurate.
+    private const int    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+    private const ushort IMAGE_FILE_MACHINE_UNKNOWN = 0x0000;
+    private const ushort IMAGE_FILE_MACHINE_I386    = 0x014C;
+    private const ushort IMAGE_FILE_MACHINE_AMD64   = 0x8664;
+    private const ushort IMAGE_FILE_MACHINE_ARM64   = 0xAA64;
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr OpenProcess(int access, bool inherit, int pid);
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool IsWow64Process2(IntPtr hProcess, out ushort processMachine, out ushort nativeMachine);
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern bool CloseHandle(IntPtr h);
+
+    private static string DetectArch(int pid)
+    {
+        var h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+        if (h == IntPtr.Zero) return "?";
         try
         {
-            // Heuristic: if module size is 0 and we can't read it, assume 32-bit or system process
-            Arch = Environment.Is64BitOperatingSystem ? "x64" : "x86";
+            if (!IsWow64Process2(h, out var procMachine, out var nativeMachine)) return "?";
+            // procMachine == UNKNOWN means the process runs natively → use the OS machine.
+            var machine = procMachine == IMAGE_FILE_MACHINE_UNKNOWN ? nativeMachine : procMachine;
+            return machine switch
+            {
+                IMAGE_FILE_MACHINE_I386  => "x86",
+                IMAGE_FILE_MACHINE_AMD64 => "x64",
+                IMAGE_FILE_MACHINE_ARM64 => "ARM64",
+                _                        => "?"
+            };
         }
-        catch { Arch = "?"; }
+        catch { return "?"; }
+        finally { CloseHandle(h); }
     }
 }
 

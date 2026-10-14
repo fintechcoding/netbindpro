@@ -158,7 +158,8 @@ public sealed class Guest : IEntryPoint
         var lastErr = NativeWinsock.WSAGetLastError();
         var s = NativeWinsock.socket((int)af, (int)type, (int)protocol);
 
-        if (s != IntPtr.Zero)
+        // socket() returns INVALID_SOCKET (-1) on failure, not 0 — don't track a failed handle.
+        if (s != IntPtr.Zero && s != new IntPtr(-1))
         {
             lock (_socketsLock)
             {

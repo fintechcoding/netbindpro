@@ -41,16 +41,6 @@
                         <Grid Margin="18,14">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="Show adapter in window title" Style="{StaticResource TextBase}" FontWeight="SemiBold"/>
-                                <TextBlock Text="Append [AdapterName - IP] to bound process title bars" Style="{StaticResource TextHint}"/>
-                            </StackPanel>
-                            <CheckBox Grid.Column="1" Style="{StaticResource ToggleCheckBox}"
-                                      IsChecked="{Binding ShowAdapterInTitle}" VerticalAlignment="Center"/>
-                        </Grid>
-                        <Separator/>
-                        <Grid Margin="18,14">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0">
                                 <TextBlock Text="Show notifications" Style="{StaticResource TextBase}" FontWeight="SemiBold"/>
                                 <TextBlock Text="Balloon tips when injection succeeds or fails" Style="{StaticResource TextHint}"/>
                             </StackPanel>

@@ -71,7 +71,10 @@ public partial class AddRuleWindow : Window
 
     private void LoadAdapters()
     {
-        var adapters = AdapterDiscovery.GetAll()
+        // Include DOWN adapters: a managed tunnel may be stopped when you add/edit a rule
+        // for it (it's resolved by name at inject time). Without this, editing a rule whose
+        // tunnel is down couldn't re-find its adapter and forced you to re-pick one.
+        var adapters = AdapterDiscovery.GetAll(includeDown: true)
             // Surface VPN / tunnel adapters first — that's the common case here.
             .OrderByDescending(a => a.IsVpnLike)
             .ThenBy(a => a.Name)

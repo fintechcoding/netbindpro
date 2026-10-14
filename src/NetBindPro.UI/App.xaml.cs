@@ -46,8 +46,16 @@ public partial class App : Application
             // Build DI container
             _services = ConfigureServices().BuildServiceProvider();
 
-            // Start background services
-            _services.GetRequiredService<ProcessMonitorService>().Start();
+            // Forward log events to the in-app Log page.
+            _services.GetRequiredService<ILoggerFactory>()
+                     .AddProvider(new UiLogProvider(_services.GetRequiredService<LogViewModel>()));
+
+            // Start the process monitor only if the setting allows it (auto-inject).
+            var settings = _services.GetRequiredService<ProfileService>().Settings;
+            var monitor = _services.GetRequiredService<ProcessMonitorService>();
+            monitor.ProcessInjected += OnProcessInjected;
+            if (settings.MonitorNewProcesses)
+                monitor.Start();
 
             // Bring up any tunnels flagged auto-start (non-blocking).
             _ = StartAutoStartTunnelsAsync();
@@ -68,6 +76,22 @@ public partial class App : Application
             ReportFatal("NetBind Pro failed to start.", ex);
             Shutdown(1);
         }
+    }
+
+    // ─── Auto-inject notifications ───────────────────────────────────────────
+
+    private void OnProcessInjected(string processName, string adapterName, bool success)
+    {
+        try
+        {
+            if (_services?.GetRequiredService<ProfileService>().Settings.ShowNotifications != true) return;
+            Dispatcher.Invoke(() => _trayIcon?.ShowBalloonTip(
+                2500, "NetBind Pro",
+                success ? $"{processName} routed through {adapterName}."
+                        : $"Couldn't route {processName} (opened too fast, or not supported).",
+                success ? ToolTipIcon.Info : ToolTipIcon.Warning));
+        }
+        catch { /* best-effort */ }
     }
 
     // ─── Crash reporting ─────────────────────────────────────────────────────
@@ -185,7 +209,7 @@ public partial class App : Application
         services.AddTransient<RulesViewModel>();
         services.AddTransient<AdaptersViewModel>();
         services.AddTransient<SettingsViewModel>();
-        services.AddTransient<LogViewModel>();
+        services.AddSingleton<LogViewModel>();   // singleton: the log provider and the Log page share it
 
         // Pages
         services.AddTransient<RulesPage>();

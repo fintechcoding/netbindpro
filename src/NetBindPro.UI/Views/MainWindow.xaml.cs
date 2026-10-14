@@ -13,13 +13,17 @@ public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm;
 
+    private static readonly string[] NavTags = { "Rules", "Adapters", "Tunnels", "Processes", "Log", "Settings" };
+
     public MainWindow(MainViewModel vm)
     {
         _vm = vm;
         DataContext = vm;
         InitializeComponent();
         NavigateTo("Rules");
-        UpdateStatusBar();
+
+        // Keep the status bar fresh as rules change (it was previously set once and frozen).
+        App.GetService<ProfileService>().RulesChanged += () => Dispatcher.Invoke(UpdateStatusBar);
 
         var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
         if (v != null) VersionText.Text = $"v{v.Major}.{v.Minor}.{v.Build}";
@@ -35,11 +39,18 @@ public partial class MainWindow : Window
 
     private void NavigateTo(string page)
     {
-        // Deactivate all nav buttons
-        foreach (var child in FindVisualChildren<System.Windows.Controls.Button>(this))
+        // Highlight the active nav button and reset the others (previously this loop just
+        // re-enabled every button, so the current page was never indicated).
+        foreach (var btn in FindVisualChildren<System.Windows.Controls.Button>(this))
         {
-            if (child.Tag is string tag && new[] { "Rules", "Adapters", "Tunnels", "Processes", "Log", "Settings" }.Contains(tag))
-                child.IsEnabled = true;
+            if (btn.Tag is string tag && NavTags.Contains(tag))
+            {
+                var active = tag == page;
+                btn.Background = active ? (System.Windows.Media.Brush)FindResource("AccentDimBrush")
+                                        : System.Windows.Media.Brushes.Transparent;
+                btn.Foreground = active ? (System.Windows.Media.Brush)FindResource("AccentBrush")
+                                        : (System.Windows.Media.Brush)FindResource("Text2Brush");
+            }
         }
 
         PageFrame.Navigate(page switch
@@ -52,6 +63,8 @@ public partial class MainWindow : Window
             "Settings"  => App.GetService<SettingsPage>(),
             _           => App.GetService<RulesPage>()
         });
+
+        UpdateStatusBar();
     }
 
     // ─── Status bar ──────────────────────────────────────────────────────────
@@ -63,6 +76,9 @@ public partial class MainWindow : Window
 
         var activeRules = profile.Rules.Count(r => r.IsEnabled);
         StatusRules.Text = $"{activeRules} rule{(activeRules != 1 ? "s" : "")} active";
+
+        // Repurpose the old fake "0 injections" into a real auto-bind indicator.
+        StatusInjections.Text = profile.Settings.MonitorNewProcesses ? "auto-bind: on" : "auto-bind: off";
 
         var wg = adapters.FirstOrDefault(a => a.Kind == AdapterKind.WireGuard);
         var ts = adapters.FirstOrDefault(a => a.Kind == AdapterKind.Tailscale);

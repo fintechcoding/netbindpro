@@ -129,7 +129,8 @@ public partial class RuleItemVm : ObservableObject
         // binds a hardened browser), and its CreateProcess hook carries the binding into
         // the child processes (the network/socket process where traffic actually flows).
         var result = await _injection.ExecuteAndInjectAsync(
-            exePath, adapterId, adapterName, arguments: launchArgs, delayMs: 0, killSwitch: Rule.KillSwitch);
+            exePath, adapterId, adapterName, arguments: launchArgs, delayMs: 0,
+            debug: _profile.Settings.DebugMode, killSwitch: Rule.KillSwitch);
 
         MessageBox.Show(
             result.Success
@@ -404,8 +405,42 @@ public partial class SettingsViewModel : ObservableObject
             InjectionDelayMs      = InjectionDelayMs
         });
 
+        // Apply the settings that have a live effect, so they aren't dead toggles.
+        var monitor = App.GetService<ProcessMonitorService>();
+        if (MonitorNewProcesses) monitor.Start(); else monitor.Stop();
+        ApplyStartWithWindows(StartWithWindows);
+
         MessageBox.Show("Settings saved.", "NetBind Pro",
             MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    /// <summary>
+    /// Adds or removes a logon scheduled task so the (elevated) app can start at login.
+    /// A scheduled task with "highest privileges" is used instead of an HKCU Run key because
+    /// the app requires administrator — a Run-key entry would prompt UAC at every login (or
+    /// start non-elevated and break tunnel/monitor control). The app already runs elevated,
+    /// so it can create the task.
+    /// </summary>
+    private static void ApplyStartWithWindows(bool enable)
+    {
+        try
+        {
+            var exe = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+            if (string.IsNullOrEmpty(exe)) return;
+
+            var args = enable
+                ? $"/create /tn \"NetBindPro\" /tr \"\\\"{exe}\\\" --minimized\" /sc onlogon /rl highest /f"
+                : "/delete /tn \"NetBindPro\" /f";
+
+            using var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("schtasks.exe", args)
+            {
+                CreateNoWindow  = true,
+                UseShellExecute = false,
+                WindowStyle     = System.Diagnostics.ProcessWindowStyle.Hidden
+            });
+            p?.WaitForExit(5000);
+        }
+        catch { /* best-effort */ }
     }
 }
 
@@ -417,12 +452,21 @@ public partial class LogViewModel : ObservableObject
 
     public void Append(LogLevel level, string message)
     {
-        Application.Current.Dispatcher.Invoke(() =>
+        // Called from arbitrary threads (log events). Marshal to the UI thread, and never
+        // let a logging failure (e.g. during shutdown when Application.Current is gone)
+        // propagate back into the code that emitted the log.
+        try
         {
-            Entries.Insert(0, new LogEntry(level, message));
-            while (Entries.Count > 500)
-                Entries.RemoveAt(Entries.Count - 1);
-        });
+            var app = Application.Current;
+            if (app == null) return;
+            app.Dispatcher.BeginInvoke(() =>
+            {
+                Entries.Insert(0, new LogEntry(level, message));
+                while (Entries.Count > 500)
+                    Entries.RemoveAt(Entries.Count - 1);
+            });
+        }
+        catch { /* best-effort UI logging */ }
     }
 
     [RelayCommand]

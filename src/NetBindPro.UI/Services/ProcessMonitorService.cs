@@ -21,6 +21,9 @@ public sealed class ProcessMonitorService : IDisposable
     private ManagementEventWatcher? _watcher;
     private bool _running;
 
+    /// <summary>Raised after an auto-inject attempt: (processName, adapterName, success).</summary>
+    public event Action<string, string, bool>? ProcessInjected;
+
     public ProcessMonitorService(
         ProfileService profile,
         InjectionService injection,
@@ -102,9 +105,12 @@ public sealed class ProcessMonitorService : IDisposable
                 "Auto-injecting {Process} (PID {Pid}) → {Adapter}",
                 processName, pid, adapterName);
 
-            var result = await _injection.InjectAsync(pid, adapterId, adapterName, rule.KillSwitch);
+            var result = await _injection.InjectAsync(
+                pid, adapterId, adapterName, rule.KillSwitch, debug: _profile.Settings.DebugMode);
             if (!result.Success)
                 _logger.LogWarning("Auto-inject failed for {Process}: {Msg}", processName, result.Message);
+
+            ProcessInjected?.Invoke(processName, adapterName, result.Success);
         }
         catch (Exception ex)
         {
