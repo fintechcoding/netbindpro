@@ -154,8 +154,17 @@ public partial class RulesViewModel : ObservableObject
     {
         _profile   = profile;
         _injection = injection;
+
+        // Keep the list in sync when rules are added/removed/updated anywhere
+        // (e.g. a row's Delete command), marshalling back to the UI thread.
+        _profile.RulesChanged += () =>
+            Application.Current?.Dispatcher.Invoke(Refresh);
+
         Refresh();
     }
+
+    // Re-filter immediately as the user types in the search box.
+    partial void OnFilterTextChanged(string value) => Refresh();
 
     [RelayCommand]
     public void Refresh()

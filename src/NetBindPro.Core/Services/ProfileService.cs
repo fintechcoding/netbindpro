@@ -37,6 +37,11 @@ public sealed class ProfileService
     private AppProfile _profile = new();
     private readonly object _lock = new();
 
+    /// <summary>Raised after the rules collection changes (add/update/remove).</summary>
+    public event Action? RulesChanged;
+
+    private void OnRulesChanged() => RulesChanged?.Invoke();
+
     // ─── Constructor ────────────────────────────────────────────────────────
 
     public ProfileService(ILogger<ProfileService>? logger = null)
@@ -139,6 +144,7 @@ public sealed class ProfileService
         }
 
         Save();
+        OnRulesChanged();
         _logger?.LogInformation("Rule added: {ProcessName} → {AdapterName}", rule.ProcessName, adapterName);
         return rule;
     }
@@ -159,6 +165,7 @@ public sealed class ProfileService
         }
 
         Save();
+        OnRulesChanged();
     }
 
     /// <summary>
@@ -172,6 +179,7 @@ public sealed class ProfileService
         }
 
         Save();
+        OnRulesChanged();
     }
 
     /// <summary>

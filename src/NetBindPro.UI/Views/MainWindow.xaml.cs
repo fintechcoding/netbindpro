@@ -20,6 +20,9 @@ public partial class MainWindow : Window
         InitializeComponent();
         NavigateTo("Rules");
         UpdateStatusBar();
+
+        var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+        if (v != null) VersionText.Text = $"v{v.Major}.{v.Minor}.{v.Build}";
     }
 
     // ─── Navigation ──────────────────────────────────────────────────────────

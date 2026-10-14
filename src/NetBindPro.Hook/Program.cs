@@ -133,10 +133,13 @@ internal static class Program
                 return Task.CompletedTask;
             }
 
-            // Validate adapter — no SupportsMulticast filter
+            // Validate adapter. Normalize braces on BOTH sides — NetworkInterface.Id on
+            // Windows is "{GUID}" (with braces), and the UI passes it with braces too;
+            // trimming only the input made the comparison always fail ("adapter not found").
+            var wanted = networkId.Trim('{', '}');
             var nic = NetworkInterface.GetAllNetworkInterfaces()
                 .FirstOrDefault(n =>
-                    n.Id.Equals(networkId.Trim('{', '}'), StringComparison.OrdinalIgnoreCase) &&
+                    n.Id.Trim('{', '}').Equals(wanted, StringComparison.OrdinalIgnoreCase) &&
                     n.OperationalStatus == OperationalStatus.Up);
 
             if (nic == null)

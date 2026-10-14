@@ -87,3 +87,4 @@ installer/*.msi
 
 # Publish output
 publish/
+cfgtest/

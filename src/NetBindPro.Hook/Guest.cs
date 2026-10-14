@@ -394,9 +394,10 @@ public sealed class Guest : IEntryPoint
         ip4 = null;
         ip6 = null;
 
+        var wantedId = _adapterId.Trim('{', '}');
         var nic = NetworkInterface.GetAllNetworkInterfaces()
             .FirstOrDefault(n =>
-                n.Id.Equals(_adapterId, StringComparison.OrdinalIgnoreCase) &&
+                n.Id.Trim('{', '}').Equals(wantedId, StringComparison.OrdinalIgnoreCase) &&
                 n.OperationalStatus == OperationalStatus.Up
                 /* No SupportsMulticast check — intentional! */);
 

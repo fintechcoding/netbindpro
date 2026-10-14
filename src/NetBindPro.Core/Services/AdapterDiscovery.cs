@@ -24,8 +24,25 @@ public static class AdapterDiscovery
         "pulse secure", "fortinet", "globalprotect", "softether"
     ];
 
+    // Substrings that mark a Windows pseudo-interface (filter drivers, QoS schedulers,
+    // WFP/MAC-layer shims, WAN miniports) rather than a real, bindable adapter. These
+    // show up in NetworkInterface.GetAllNetworkInterfaces() but aren't usable adapters.
+    private static readonly string[] PseudoInterfaceMarkers =
+    [
+        "miniport", "packet scheduler", "qos packet", "wfp", "filter driver",
+        "lightweight filter", "mac layer", "kernel debug", "ras async",
+        "wifi filter", "wi-fi direct virtual", "teredo", "isatap", "6to4", "ip-https"
+    ];
+
+    private static bool IsPseudoInterface(string name, string desc)
+    {
+        var combined = $"{name} {desc}".ToLowerInvariant();
+        return PseudoInterfaceMarkers.Any(combined.Contains);
+    }
+
     /// <summary>
-    /// Returns all non-loopback network adapters. When <paramref name="includeDown"/>
+    /// Returns all real, non-loopback network adapters (pseudo-interfaces such as filter
+    /// drivers, QoS schedulers and WAN miniports are excluded). When <paramref name="includeDown"/>
     /// is <c>false</c> (default), only adapters with <see cref="OperationalStatus.Up"/> are returned.
     /// </summary>
     public static IReadOnlyList<AdapterInfo> GetAll(bool includeDown = false)
@@ -38,6 +55,9 @@ public static class AdapterDiscovery
                 continue;
 
             if (!includeDown && nic.OperationalStatus != OperationalStatus.Up)
+                continue;
+
+            if (IsPseudoInterface(nic.Name, nic.Description ?? string.Empty))
                 continue;
 
             result.Add(BuildInfo(nic));
