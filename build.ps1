@@ -82,8 +82,11 @@ dotnet build "src\NetBindPro.Hook\NetBindPro.Hook.csproj" `
 Assert-ExitCode
 
 Write-Step "Building NetBindPro.Hook (x86) — required for 32-bit target processes..."
+# NOTE: no --no-restore here. The solution restore above only restores the default
+# platform; the x86 (net48/win-x86) target needs its own restore or the build fails
+# with NETSDK1047. Letting this build restore implicitly matches what CI does.
 dotnet build "src\NetBindPro.Hook\NetBindPro.Hook.csproj" `
-    --configuration $Configuration --no-restore /p:Platform=x86
+    --configuration $Configuration /p:Platform=x86
 Assert-ExitCode
 
 # ── Build UI ─────────────────────────────────────────────────────────────────

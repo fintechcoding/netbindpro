@@ -101,7 +101,7 @@
                                 <!-- Actions -->
                                 <StackPanel Grid.Column="4" Orientation="Horizontal"
                                             VerticalAlignment="Center" HorizontalAlignment="Right">
-                                    <Button Style="{StaticResource IconButton}" ToolTip="Inject now"
+                                    <Button Style="{StaticResource IconButton}" ToolTip="Launch bound — start this app through the adapter"
                                             Command="{Binding InjectCommand}" Margin="0,0,2,0">
                                         <TextBlock Text="&#xE768;" FontFamily="Segoe MDL2 Assets"
                                                    FontSize="12" Foreground="{StaticResource AccentBrush}"/>

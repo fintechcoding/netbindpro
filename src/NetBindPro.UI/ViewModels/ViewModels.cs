@@ -86,29 +86,68 @@ public partial class RuleItemVm : ObservableObject
     [RelayCommand]
     private async Task InjectAsync()
     {
-        // Only the main + network/utility processes — sandboxed browser renderers
-        // (ACG) would crash if injected, which closes the browser.
-        var pids = InjectionService.GetInjectablePids(Rule.ProcessName);
+        var (adapterId, adapterName) = WireGuardService.ResolveRuleAdapter(Rule);
 
-        if (pids.Count == 0)
+        // IMPORTANT: a running browser (Chrome/Firefox/Edge) CANNOT be bound after the
+        // fact — their process mitigations block DLL injection into an already-running
+        // process (EasyHook: "didn't raise the remote event"). The reliable way is to
+        // LAUNCH the app through the Hook so the binding is installed at startup
+        // (suspended-create + inject). So this command launches the app bound.
+        var exePath = ResolveExePath();
+        if (exePath == null)
         {
-            MessageBox.Show($"No running process found matching '{Rule.ProcessName}'.",
-                "NetBind Pro", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(
+                $"Couldn't find the program for '{Rule.ProcessName}'. Edit the rule and set its full " +
+                "path (Browse to the .exe), then try again.",
+                "NetBind Pro", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        var (adapterId, adapterName) = WireGuardService.ResolveRuleAdapter(Rule);
-
-        var failures = 0;
-        foreach (var pid in pids)
+        // If it's already running, launching again usually just hands off to the existing
+        // (un-bound) instance — so warn the user to close it first.
+        var baseName = System.IO.Path.GetFileNameWithoutExtension(Rule.ProcessName);
+        if (System.Diagnostics.Process.GetProcessesByName(baseName).Length > 0)
         {
-            var result = await _injection.InjectAsync(pid, adapterId, adapterName, Rule.KillSwitch);
-            if (!result.Success) failures++;
+            var go = MessageBox.Show(
+                $"{Rule.ProcessName} is already running.\n\n" +
+                "A running app can't be bound after it has started — close ALL of its windows " +
+                "first, then launch it bound from here.\n\nLaunch a new bound instance anyway?",
+                "NetBind Pro", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (go != MessageBoxResult.Yes) return;
         }
 
-        if (failures == pids.Count)
-            MessageBox.Show($"Injection failed for all {pids.Count} process(es) of '{Rule.ProcessName}'.",
-                "NetBind Pro", MessageBoxButton.OK, MessageBoxImage.Warning);
+        // delayMs 0 → the Hook uses suspended-create + inject (the only path that reliably
+        // binds a hardened browser), and its CreateProcess hook carries the binding into
+        // the child processes (the network/socket process where traffic actually flows).
+        var result = await _injection.ExecuteAndInjectAsync(
+            exePath, adapterId, adapterName, delayMs: 0, killSwitch: Rule.KillSwitch);
+
+        MessageBox.Show(
+            result.Success
+                ? $"Launched '{Rule.ProcessName}' bound to {adapterName}."
+                : $"Couldn't launch '{Rule.ProcessName}' bound to {adapterName}: {result.Message}",
+            "NetBind Pro", MessageBoxButton.OK,
+            result.Success ? MessageBoxImage.Information : MessageBoxImage.Warning);
+    }
+
+    /// <summary>Resolves the executable to launch: the rule's stored path, else a running
+    /// instance's image path, else null (caller asks the user to set it).</summary>
+    private string? ResolveExePath()
+    {
+        if (!string.IsNullOrWhiteSpace(Rule.ProcessPath) && System.IO.File.Exists(Rule.ProcessPath))
+            return Rule.ProcessPath;
+
+        try
+        {
+            var baseName = System.IO.Path.GetFileNameWithoutExtension(Rule.ProcessName);
+            foreach (var p in System.Diagnostics.Process.GetProcessesByName(baseName))
+            {
+                try { var f = p.MainModule?.FileName; if (!string.IsNullOrEmpty(f)) return f; }
+                catch { /* protected / cross-arch */ }
+            }
+        }
+        catch { /* ignore */ }
+        return null;
     }
 
     [RelayCommand]

@@ -209,6 +209,12 @@ internal static class Program
     {
         var injector = Assembly.GetExecutingAssembly().Location;
 
+        // Firefox-only, harmless elsewhere: disable Firefox's "launcher process" so the
+        // process we create+inject stays alive as the parent long enough for our
+        // CreateProcess hook to catch and inject the real browser process it spawns.
+        // (The launched process inherits this environment.)
+        Environment.SetEnvironmentVariable("MOZ_LAUNCHER_PROCESS", "0");
+
         if (delay <= 0)
         {
             // Fast path: CreateAndInject starts the process in a suspended state,

@@ -7,6 +7,34 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [2.3.8] — 2026-10-14 — Bind browsers by launching them (attach can't)
+
+### Fixed
+- **The rule "Inject" button now LAUNCHES the app bound instead of attaching to a
+  running one.** A running browser cannot be bound after the fact — Chromium/Firefox
+  process mitigations block DLL injection into an already-started process (EasyHook
+  fails with "C++ completion routine … didn't raise the remote event"), which is why
+  clicking Inject on a running Firefox reported "Injection failed for all 6 process(es)".
+  The command now starts the program through the Hook (suspended-create + inject), the
+  only path that reliably binds a hardened browser, and warns you to close it first if
+  it is already running (relaunching usually just hands off to the unbound instance).
+- **Child-process binding is more robust.** The Hook now also hooks
+  `kernelbase!CreateProcessInternalW` — the funnel that `CreateProcessW/A` and many apps
+  call — so child processes (e.g. a browser's network/socket process, where traffic
+  flows) are caught even when they bypass the public entry points. Spawns are
+  de-duplicated so each child is injected once.
+- Clearer messages: the Processes page explains that hardened/running apps can't be
+  bound in place and to use a rule's Launch button instead.
+
+### Known limitation
+- **Firefox is not bound yet.** Its "launcher process" spawns the real browser via a
+  lower-level path (`NtCreateUserProcess`) that bypasses the user-mode CreateProcess
+  hooks, so the actual Firefox process stays unbound. **Chrome and Edge work fully via
+  the Launch button.** Reliable Firefox support needs the kernel-level WFP approach
+  (tracked for a future release); use a Chromium browser for per-process tunneling today.
+
+---
+
 ## [2.3.7] — 2026-10-14 — The real injection fix (browser actually binds)
 
 ### Fixed

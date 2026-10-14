@@ -36,6 +36,11 @@ public sealed class Guest : IEntryPoint
     private readonly Dictionary<IntPtr, bool> _boundSockets = [];
     private readonly object _socketsLock = new();
 
+    // Child PIDs already scheduled for injection, so a spawn seen by both the
+    // CreateProcessW/A hook and the CreateProcessInternalW hook is only injected once.
+    private readonly HashSet<int> _injectedChildren = [];
+    private readonly object _childrenLock = new();
+
     // ─── Winsock constants (kill-switch) ────────────────────────────────────
     private const int SOCKET_ERROR   = -1;
     private const int WSAENETUNREACH = 10051; // "Network is unreachable"
@@ -107,7 +112,14 @@ public sealed class Guest : IEntryPoint
         InstallHook("ws2_32.dll", "closesocket",
             new CloseSocketDelegate(OnClose));
 
-        // Hook child process creation so spawned processes inherit the binding
+        // Hook child process creation so spawned processes inherit the binding.
+        // CreateProcessInternalW (kernelbase) is the funnel that both CreateProcessW/A
+        // AND apps bypassing the public entry points (e.g. Firefox's launcher, which
+        // otherwise spawns the real browser via a path we don't see) go through. Child
+        // PIDs are de-duplicated so a spawn caught by more than one hook injects once.
+        InstallHook("kernelbase.dll", "CreateProcessInternalW",
+            new CreateProcessInternalWDelegate(CreateProcessInternalW_Hook));
+
         InstallHook("kernel32.dll", "CreateProcessW",
             new CreateProcessDelegate(CreateProcessW_Hook));
 
@@ -264,39 +276,75 @@ public sealed class Guest : IEntryPoint
             : NativeKernel.CreateProcessA(lpApp, lpCmd, lpPA, lpTA, bInherit, dwFlags, lpEnv, lpDir, lpSI, out pi);
 
         if (result && pi.dwProcessId > 0)
-        {
-            var childPid   = pi.dwProcessId;
-            var injPath    = _injectorPath;
-            var aid        = _adapterId;
-            var delay      = _delayMs;
-            var logEnabled = _logPath != null;
-            var ks         = _killSwitch;
+            ScheduleChildInjection(pi.dwProcessId);
 
-            // Inject asynchronously to avoid blocking the parent process
-            new Thread(() =>
+        return result;
+    }
+
+    // ─── Hook: CreateProcessInternalW() ──────────────────────────────────────
+
+    private bool CreateProcessInternalW_Hook(
+        IntPtr hUserToken, IntPtr lpApp, IntPtr lpCmd, IntPtr lpPA, IntPtr lpTA,
+        bool bInherit, uint dwFlags, IntPtr lpEnv, IntPtr lpDir,
+        IntPtr lpSI, IntPtr lpPI, IntPtr hNewToken)
+    {
+        bool result = NativeKernel.CreateProcessInternalW(
+            hUserToken, lpApp, lpCmd, lpPA, lpTA, bInherit, dwFlags, lpEnv, lpDir, lpSI, lpPI, hNewToken);
+
+        if (result && lpPI != IntPtr.Zero)
+        {
+            try
             {
-                Thread.Sleep(Math.Max(delay, 800));
-                for (int attempt = 0; attempt < 3; attempt++)
-                {
-                    try
-                    {
-                        RemoteHooking.Inject(
-                            childPid, injPath, injPath,
-                            aid, injPath, delay, false, logEnabled, ks);
-                        Log("CreateProcess", $"Child PID {childPid} injected successfully");
-                        return;
-                    }
-                    catch (Exception ex)
-                    {
-                        Log("CreateProcess", $"Child inject attempt {attempt + 1}/3 failed: {ex.Message}");
-                        Thread.Sleep(1000);
-                    }
-                }
-            })
-            { IsBackground = true }.Start();
+                // PROCESS_INFORMATION: hProcess, hThread, dwProcessId, dwThreadId.
+                // dwProcessId follows the two handles.
+                var childPid = Marshal.ReadInt32(lpPI, IntPtr.Size * 2);
+                if (childPid > 0) ScheduleChildInjection(childPid);
+            }
+            catch (Exception ex) { Log("CreateProcessInternalW", $"read pid failed: {ex.Message}"); }
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Injects the binding into a freshly-spawned child process, once. De-duplicated so a
+    /// spawn observed by both the CreateProcessW/A and CreateProcessInternalW hooks only
+    /// triggers a single injection. Runs asynchronously so the parent is never blocked.
+    /// </summary>
+    private void ScheduleChildInjection(int childPid)
+    {
+        lock (_childrenLock)
+        {
+            if (!_injectedChildren.Add(childPid)) return; // already handled
+        }
+
+        var injPath    = _injectorPath;
+        var aid        = _adapterId;
+        var delay      = _delayMs;
+        var logEnabled = _logPath != null;
+        var ks         = _killSwitch;
+
+        new Thread(() =>
+        {
+            Thread.Sleep(Math.Max(delay, 800));
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                try
+                {
+                    RemoteHooking.Inject(
+                        childPid, injPath, injPath,
+                        aid, injPath, delay, false, logEnabled, ks);
+                    Log("ChildInject", $"Child PID {childPid} injected successfully");
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    Log("ChildInject", $"Child {childPid} inject attempt {attempt + 1}/3 failed: {ex.Message}");
+                    Thread.Sleep(1000);
+                }
+            }
+        })
+        { IsBackground = true }.Start();
     }
 
     // ─── Binding logic ───────────────────────────────────────────────────────

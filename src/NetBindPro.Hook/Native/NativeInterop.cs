@@ -72,6 +72,17 @@ internal delegate bool CreateProcessDelegate(
     IntPtr lpEnvironment, IntPtr lpCurrentDirectory,
     IntPtr lpStartupInfo, out ProcessInformation lpProcessInformation);
 
+// CreateProcessInternalW is the undocumented funnel that CreateProcessW/A (and some
+// apps, e.g. Firefox's launcher) call directly. Hooking it catches child spawns that
+// bypass the public kernel32 entry points. Raw IntPtrs are used for the last two
+// out-params because callers legitimately pass NULL for hNewToken.
+internal delegate bool CreateProcessInternalWDelegate(
+    IntPtr hUserToken, IntPtr lpApplicationName, IntPtr lpCommandLine,
+    IntPtr lpProcessAttributes, IntPtr lpThreadAttributes,
+    bool bInheritHandles, uint dwCreationFlags,
+    IntPtr lpEnvironment, IntPtr lpCurrentDirectory,
+    IntPtr lpStartupInfo, IntPtr lpProcessInformation, IntPtr hNewToken);
+
 // ─── P/Invoke declarations ────────────────────────────────────────────────────
 
 internal static class NativeWinsock
@@ -130,4 +141,12 @@ internal static partial class NativeKernel
         bool bInheritHandles, uint dwCreationFlags,
         IntPtr lpEnvironment, IntPtr lpCurrentDirectory,
         IntPtr lpStartupInfo, out ProcessInformation lpProcessInformation);
+
+    [DllImport("kernelbase.dll", EntryPoint = "CreateProcessInternalW", SetLastError = true, CharSet = CharSet.Unicode)]
+    public static extern bool CreateProcessInternalW(
+        IntPtr hUserToken, IntPtr lpApplicationName, IntPtr lpCommandLine,
+        IntPtr lpProcessAttributes, IntPtr lpThreadAttributes,
+        bool bInheritHandles, uint dwCreationFlags,
+        IntPtr lpEnvironment, IntPtr lpCurrentDirectory,
+        IntPtr lpStartupInfo, IntPtr lpProcessInformation, IntPtr hNewToken);
 }

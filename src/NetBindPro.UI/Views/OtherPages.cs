@@ -103,8 +103,11 @@ public partial class ProcessesPage : Page
         }
 
         if (failures == pids.Count)
-            MessageBox.Show($"Injection failed for '{row.Name}'.", "NetBind Pro",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(
+                $"Couldn't bind the running '{row.Name}'.\n\n" +
+                "Browsers and other hardened apps block being bound after they have started " +
+                "— add a rule for them and use its Launch button to start them bound instead.",
+                "NetBind Pro", MessageBoxButton.OK, MessageBoxImage.Warning);
         else
             MessageBox.Show($"'{row.Name}' is now bound to {adapter.Name}" +
                             (failures > 0 ? $" ({failures} of {pids.Count} process(es) failed)." : "."),
