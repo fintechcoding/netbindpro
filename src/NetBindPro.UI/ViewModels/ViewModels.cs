@@ -86,10 +86,11 @@ public partial class RuleItemVm : ObservableObject
     [RelayCommand]
     private async Task InjectAsync()
     {
-        var processes = System.Diagnostics.Process.GetProcessesByName(
-            System.IO.Path.GetFileNameWithoutExtension(Rule.ProcessName));
+        // Only the main + network/utility processes — sandboxed browser renderers
+        // (ACG) would crash if injected, which closes the browser.
+        var pids = InjectionService.GetInjectablePids(Rule.ProcessName);
 
-        if (processes.Length == 0)
+        if (pids.Count == 0)
         {
             MessageBox.Show($"No running process found matching '{Rule.ProcessName}'.",
                 "NetBind Pro", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -98,13 +99,16 @@ public partial class RuleItemVm : ObservableObject
 
         var (adapterId, adapterName) = WireGuardService.ResolveRuleAdapter(Rule);
 
-        foreach (var proc in processes)
+        var failures = 0;
+        foreach (var pid in pids)
         {
-            var result = await _injection.InjectAsync(proc.Id, adapterId, adapterName, Rule.KillSwitch);
-            if (!result.Success)
-                MessageBox.Show($"Injection failed for PID {proc.Id}: {result.Message}",
-                    "NetBind Pro", MessageBoxButton.OK, MessageBoxImage.Warning);
+            var result = await _injection.InjectAsync(pid, adapterId, adapterName, Rule.KillSwitch);
+            if (!result.Success) failures++;
         }
+
+        if (failures == pids.Count)
+            MessageBox.Show($"Injection failed for all {pids.Count} process(es) of '{Rule.ProcessName}'.",
+                "NetBind Pro", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
     [RelayCommand]

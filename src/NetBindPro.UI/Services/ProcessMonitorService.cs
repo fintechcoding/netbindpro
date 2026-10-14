@@ -87,6 +87,13 @@ public sealed class ProcessMonitorService : IDisposable
             if (pidObj == null) return;
             var pid = Convert.ToInt32(pidObj);
 
+            // Never inject a sandboxed browser child (ACG) — it would crash it.
+            if (InjectionService.IsSandboxedChild(pid))
+            {
+                _logger.LogDebug("Skipping sandboxed child {Process} (PID {Pid})", processName, pid);
+                return;
+            }
+
             // Resolve the live adapter — honours a tunnel-by-name rule even if the
             // tunnel's GUID changed since the rule was created.
             var (adapterId, adapterName) = WireGuardService.ResolveRuleAdapter(rule);

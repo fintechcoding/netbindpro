@@ -3,6 +3,7 @@
 
 using System.Diagnostics;
 using System.IO;
+using System.Management;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
 using NetBindPro.Core.Models;
@@ -63,6 +64,58 @@ public sealed class InjectionService
             args += " --no-killswitch";
 
         return await RunHookAsync(args, 0, adapterName);
+    }
+
+    // ─── Sandboxed-child detection ───────────────────────────────────────────
+
+    /// <summary>
+    /// Returns <c>true</c> if the process is a sandboxed browser child (Chromium renderer/
+    /// GPU/crashpad, or a Firefox content tab). Those enable Arbitrary Code Guard (ACG),
+    /// which makes DLL injection crash them — so we must NOT inject them. The browser's
+    /// main process and its network/utility process (where traffic actually flows) are fine.
+    /// </summary>
+    public static bool IsSandboxedChild(int pid)
+    {
+        try
+        {
+            using var searcher = new ManagementObjectSearcher(
+                $"SELECT CommandLine FROM Win32_Process WHERE ProcessId = {pid}");
+            foreach (ManagementBaseObject mo in searcher.Get())
+            {
+                var cl = mo["CommandLine"]?.ToString() ?? string.Empty;
+                return IsSandboxedCommandLine(cl);
+            }
+        }
+        catch { /* if we can't tell, don't block injection */ }
+        return false;
+    }
+
+    private static bool IsSandboxedCommandLine(string cl)
+    {
+        // Chromium (Chrome/Edge/Brave) sandboxed children
+        if (cl.Contains("--type=renderer")) return true;
+        if (cl.Contains("--type=gpu-process")) return true;
+        if (cl.Contains("--type=crashpad-handler")) return true;
+        if (cl.Contains("--type=ppapi")) return true;
+        // Firefox content tab processes (keep the main + socket process injectable)
+        if (cl.Contains("-contentproc") &&
+            (cl.TrimEnd().EndsWith(" tab", StringComparison.OrdinalIgnoreCase) ||
+             cl.Contains(" tab ")))
+            return true;
+        return false;
+    }
+
+    /// <summary>
+    /// Returns the PIDs of a named process that are safe and useful to inject —
+    /// the main and network/utility processes, with sandboxed children filtered out.
+    /// </summary>
+    public static List<int> GetInjectablePids(string processName)
+    {
+        var baseName = Path.GetFileNameWithoutExtension(processName);
+        return Process.GetProcessesByName(baseName)
+            .Select(p => p.Id)
+            .Where(pid => !IsSandboxedChild(pid))
+            .ToList();
     }
 
     // ─── Private ─────────────────────────────────────────────────────────────
