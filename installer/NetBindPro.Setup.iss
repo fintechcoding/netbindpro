@@ -3,7 +3,7 @@
 ; Run: ISCC.exe NetBindPro.Setup.iss
 
 #define AppName        "NetBind Pro"
-#define AppVersion     "2.3.6"
+#define AppVersion     "2.3.7"
 #define AppPublisher   "NetBind Pro Contributors"
 #define AppURL         "https://github.com/fintechcoding/netbindpro"
 #define AppExeName     "NetBindPro.exe"

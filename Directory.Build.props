@@ -3,9 +3,9 @@
     <Company>NetBind Pro</Company>
     <Product>NetBind Pro</Product>
     <Copyright>Copyright © 2024 NetBind Pro Contributors</Copyright>
-    <Version>2.3.6</Version>
-    <AssemblyVersion>2.3.6.0</AssemblyVersion>
-    <FileVersion>2.3.6.0</FileVersion>
+    <Version>2.3.7</Version>
+    <AssemblyVersion>2.3.7.0</AssemblyVersion>
+    <FileVersion>2.3.7.0</FileVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>

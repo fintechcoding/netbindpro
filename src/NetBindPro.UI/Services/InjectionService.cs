@@ -131,24 +131,41 @@ public sealed class InjectionService
 
         try
         {
-            var psi = new ProcessStartInfo(_hookExePath, args)
+            // Run the Hook DE-ELEVATED (at the interactive user's medium integrity level),
+            // even though this UI is elevated. EasyHook's CreateAndInject starts the target
+            // at the Hook's integrity level; a browser launched elevated de-elevates itself
+            // into a new, un-hooked process ("nothing gets bound"). Running the Hook at the
+            // user's level makes the browser start at medium IL so the injected process is
+            // the real one. See DeElevation for the full rationale.
+            var exitCode = await Task.Run(() =>
             {
-                UseShellExecute        = true,
-                Verb                   = "runas",   // elevate to admin
-                CreateNoWindow         = true,
-                WindowStyle            = ProcessWindowStyle.Hidden
-            };
+                var r = DeElevation.Run(_hookExePath, args);
+                if (!r.Started)
+                {
+                    // Fall back to a normal launch (inherits this process's token). This still
+                    // works for attaching to an already-running medium-IL process; it only
+                    // fails the self-de-elevating browser-launch case, which is rare (no shell).
+                    _logger.LogWarning("De-elevated launch unavailable ({Err}); using normal launch", r.Error);
+                    var psi = new ProcessStartInfo(_hookExePath, args)
+                    {
+                        UseShellExecute = false,
+                        CreateNoWindow  = true,
+                        WindowStyle     = ProcessWindowStyle.Hidden
+                    };
+                    using var proc = Process.Start(psi) ?? throw new Exception("Failed to start Hook process.");
+                    proc.WaitForExit();
+                    return proc.ExitCode;
+                }
+                return r.ExitCode;
+            });
 
-            var proc = Process.Start(psi) ?? throw new Exception("Failed to start Hook process.");
-            await proc.WaitForExitAsync();
-
-            if (proc.ExitCode == 0)
+            if (exitCode == 0)
             {
                 _logger.LogInformation("Injection success: PID {Pid} → {Adapter}", pid, adapterName);
                 return InjectionResult.Ok(pid, string.Empty, adapterName);
             }
 
-            var msg = $"Hook process exited with code {proc.ExitCode}";
+            var msg = $"Hook process exited with code {exitCode}";
             _logger.LogWarning(msg);
             return InjectionResult.Fail(pid, string.Empty, msg);
         }

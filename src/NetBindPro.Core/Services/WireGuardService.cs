@@ -26,8 +26,12 @@ namespace NetBindPro.Core.Services;
 /// </remarks>
 public sealed class WireGuardService
 {
+    // Tunnel configs MUST live somewhere the WireGuard tunnel service — which runs as
+    // LocalSystem — can read. The per-user %APPDATA% path is NOT reliably readable by
+    // LocalSystem (the service fails with "The system cannot find the path specified"
+    // and the tunnel never comes up). ProgramData is machine-wide and SYSTEM-readable.
     private static readonly string TunnelsDirectory = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
         "NetBindPro", "tunnels");
 
     private static readonly string[] CandidateExePaths =
@@ -42,6 +46,44 @@ public sealed class WireGuardService
     {
         _logger = logger;
         Directory.CreateDirectory(TunnelsDirectory);
+        HardenTunnelsDirectoryAcl();
+    }
+
+    /// <summary>
+    /// Restricts the tunnels directory to SYSTEM + Administrators (full control) and
+    /// removes inherited access, so the private keys in the configs are not readable by
+    /// ordinary users. ProgramData is world-readable by default, so this is required now
+    /// that configs live there (they must stay SYSTEM-readable for the tunnel service).
+    /// Best-effort: failures are logged, not fatal.
+    /// </summary>
+    private void HardenTunnelsDirectoryAcl()
+    {
+        try
+        {
+            var di  = new DirectoryInfo(TunnelsDirectory);
+            var sec = new System.Security.AccessControl.DirectorySecurity();
+            sec.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+
+            void Allow(System.Security.Principal.WellKnownSidType sid)
+            {
+                var account = new System.Security.Principal.SecurityIdentifier(sid, null);
+                sec.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(
+                    account,
+                    System.Security.AccessControl.FileSystemRights.FullControl,
+                    System.Security.AccessControl.InheritanceFlags.ContainerInherit |
+                    System.Security.AccessControl.InheritanceFlags.ObjectInherit,
+                    System.Security.AccessControl.PropagationFlags.None,
+                    System.Security.AccessControl.AccessControlType.Allow));
+            }
+
+            Allow(System.Security.Principal.WellKnownSidType.LocalSystemSid);
+            Allow(System.Security.Principal.WellKnownSidType.BuiltinAdministratorsSid);
+            di.SetAccessControl(sec);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Could not harden tunnels directory ACL ({Dir})", TunnelsDirectory);
+        }
     }
 
     // ─── Availability ────────────────────────────────────────────────────────
@@ -135,8 +177,9 @@ public sealed class WireGuardService
         // high-metric route ourselves on start so only source-bound sockets use it.
         var rewritten = RewriteInterface(rawText, existingMtu);
         File.WriteAllText(destPath, rewritten);
-        // The tunnels directory lives under %APPDATA% (per-user) so the private key
-        // in the config is not world-readable. A future pass can tighten the ACL further.
+        // The tunnels directory lives under ProgramData (so the LocalSystem tunnel service
+        // can read it) with an ACL restricted to SYSTEM + Administrators, so the private
+        // key in the config is not readable by ordinary users (see HardenTunnelsDirectoryAcl).
 
         var tunnel = new TunnelConfig
         {
@@ -184,8 +227,13 @@ public sealed class WireGuardService
                 continue;
             }
 
-            // Drop any existing Table/MTU lines inside [Interface]; we control them.
-            if (inIface && Regex.IsMatch(trimmed, @"^(Table|MTU)\s*=", RegexOptions.IgnoreCase))
+            // Drop existing Table/MTU lines inside [Interface]; we control them.
+            // Also drop DNS: with Table=off there is no route to the tunnel's DNS server,
+            // yet WireGuard would still install a system-wide NRPT rule pointing all name
+            // resolution at that (now unreachable) server — breaking DNS for the whole PC
+            // while the tunnel is up. The bound process resolves over its own tunnel-bound
+            // socket, so a per-interface DNS line is both unnecessary and harmful here.
+            if (inIface && Regex.IsMatch(trimmed, @"^(Table|MTU|DNS)\s*=", RegexOptions.IgnoreCase))
                 continue;
 
             output.Add(line);

@@ -5,8 +5,10 @@
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
     <security>
       <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
-        <!-- Injection requires administrator privileges -->
-        <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
+        <!-- Injection into the user's own processes needs no elevation. Running as invoker
+             also keeps launched apps at normal integrity (an elevated Chrome relaunches
+             itself into a new, un-hooked process). -->
+        <requestedExecutionLevel level="asInvoker" uiAccess="false" />
       </requestedPrivileges>
     </security>
   </trustInfo>

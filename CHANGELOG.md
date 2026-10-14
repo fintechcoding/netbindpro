@@ -7,6 +7,37 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [2.3.7] — 2026-10-14 — The real injection fix (browser actually binds)
+
+### Fixed
+- **Injection into Chrome/Edge now works.** The Hook was launched elevated (`runas`) from
+  the elevated UI, so EasyHook's `CreateAndInject` started the browser *elevated* too —
+  and Chromium reacts to being launched elevated by **de-elevating itself** (relaunching
+  as a fresh medium-integrity process, flagged `--do-not-de-elevate`). We injected the
+  first instance; the browser kept running as the un-injected relaunch, so nothing got
+  bound. `InjectionService` now launches the Hook **de-elevated** at the interactive
+  user's integrity level (duplicating the shell token via `CreateProcessWithTokenW`, see
+  `DeElevation`), so the browser starts at medium IL and the process we inject is the real
+  one. The UI stays elevated for the operations that need it (process monitoring, tunnel
+  services, routing). Verified: browser + network-service process both hooked, sockets
+  rebind to the chosen adapter, and egress leaves via that adapter's IP.
+- **WireGuard tunnels now actually start.** Configs were written under per-user `%APPDATA%`,
+  which the tunnel service (running as **LocalSystem**) cannot read — it failed with "The
+  system cannot find the path specified" and the adapter never came up. Tunnel configs now
+  live under `ProgramData\NetBindPro\tunnels` (machine-wide, SYSTEM-readable) with an ACL
+  restricted to SYSTEM + Administrators so the private keys stay protected.
+- **`DNS =` is stripped on import** (alongside `Table = off`). With `Table = off` there is
+  no route to the tunnel's DNS server, yet WireGuard would still point *all* system name
+  resolution at it (NRPT), breaking DNS for the whole PC while the tunnel is up. The bound
+  process resolves over its own tunnel-bound socket, so the per-interface DNS is unneeded.
+
+### Verified (on an RDP box, RDP never dropped)
+- A full-tunnel (`AllowedIPs = 0.0.0.0/0`) WireGuard config imported, started, and routed
+  Chrome's traffic out the VPN exit IP while the machine's own default route (and the RDP
+  session on it) stayed on the physical adapter untouched.
+
+---
+
 ## [2.3.3] — 2026-10-14 — The real launch fix
 
 ### Fixed
