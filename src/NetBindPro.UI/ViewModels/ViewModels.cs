@@ -252,12 +252,23 @@ public partial class RuleItemVm : ObservableObject
         MessageBox.Show(msg, "Verify", MessageBoxButton.OK, icon);
     }
 
-    [RelayCommand]
-    private void Toggle()
+    /// <summary>
+    /// Two-way bound to the status toggle. Previously the toggle had BOTH an IsChecked
+    /// two-way binding AND a Toggle command, which cancelled each other out (the binding
+    /// set the new value, the command flipped it back) — so the toggle couldn't be turned
+    /// off. This single property is now the one source of truth and persists on change.
+    /// </summary>
+    public bool IsEnabled
     {
-        Rule.IsEnabled = !Rule.IsEnabled;
-        _profile.UpdateRule(Rule);
-        OnPropertyChanged(nameof(Rule));
+        get => Rule.IsEnabled;
+        set
+        {
+            if (Rule.IsEnabled == value) return;
+            Rule.IsEnabled = value;
+            _profile.UpdateRule(Rule);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(SubText));
+        }
     }
 
     [RelayCommand]

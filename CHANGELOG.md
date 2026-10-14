@@ -7,6 +7,17 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [2.4.1] — 2026-10-15 — Fix the rule status toggle
+
+### Fixed
+- **The status toggle on a rule can now be turned off.** It had both an `IsChecked`
+  two-way binding and a `Toggle` command, which fought each other — the binding set the
+  new value and the command immediately flipped it back, so the toggle appeared stuck on.
+  It's now a single two-way-bound property that persists the change.
+- The rule-count badge now shows the real number of rules instead of always "0".
+
+---
+
 ## [2.4.0] — 2026-10-14 — Auto-bind on open, and no dead-end browser rules
 
 ### Added
