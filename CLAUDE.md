@@ -14,7 +14,7 @@ Per-process network adapter binding tool for Windows. Forces specific processes 
 dotnet build NetBindPro.sln --configuration Debug
 ```
 
-Target: `net8.0-windows` | Platforms: x64, x86 (UI is x64 only)
+Targets: UI + Core `net10.0-windows` (self-contained), Hook `net48` (EasyHook requires a .NET Framework payload) | Platforms: x64, x86 (UI is x64 only)
 
 ## Key Dependencies
 

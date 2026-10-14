@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <AssemblyName>NetBindPro.Core</AssemblyName>
     <RootNamespace>NetBindPro.Core</RootNamespace>
     <Platforms>x86;x64</Platforms>

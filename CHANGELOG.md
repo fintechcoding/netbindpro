@@ -7,6 +7,22 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [2.3.2] — 2026-10-14 — App launches
+
+### Fixed
+- **App crashed on launch with no window** (`System.TypeInitializationException` →
+  `MS.Internal.MimeTypeMapper` → `System.Memory, Version=8.0.0.0 not found`). The .NET 8
+  self-contained publish shipped an old out-of-band `System.Memory.dll` (assembly 4.0.1.1)
+  that shadowed the framework's 8.0.0.0, so WPF failed to initialize. Retargeted the UI and
+  Core to **.NET 10** (`net10.0-windows`), whose self-contained output carries a consistent
+  `System.Memory` 10.0.0.0 — the app now starts. Verified by launching the self-contained
+  build. The Hook stays on .NET Framework 4.8 for EasyHook.
+
+### Build
+- CI now uses the .NET 10 SDK.
+
+---
+
 ## [2.3.1] — 2026-10-14
 
 ### Fixed
