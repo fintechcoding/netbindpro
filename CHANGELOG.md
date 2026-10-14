@@ -7,6 +7,24 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [2.4.0] — 2026-10-14 — Auto-bind on open, and no dead-end browser rules
+
+### Added
+- **Auto-bind when you open an app.** With the "Auto-bind when I open this app" toggle on
+  (the default), while NetBind Pro runs in the tray, launching the app yourself — from the
+  Start menu, a shortcut, anywhere — routes it through the adapter automatically. No need
+  to launch it from inside NetBind Pro. Verified live: opening `mstsc.exe` normally gets it
+  bound to the tunnel with no clicks.
+
+### Changed
+- **Adding Chrome, Edge or Firefox is blocked** with a clear explanation, instead of
+  silently creating a rule that can't work (their mitigations defeat injection — see 2.3.9).
+  Native apps like Remote Desktop (`mstsc.exe`) and Telegram are the supported path.
+- Clearer wording throughout the Add-Rule dialog and rule list: "Auto-bind when I open
+  this app" and "Launch now (▶)" replace the confusing "auto-inject / manual" labels.
+
+---
+
 ## [2.3.9] — 2026-10-14 — Correct binding, a Verify button, and a known-good app (mstsc)
 
 ### Fixed

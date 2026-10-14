@@ -193,10 +193,10 @@
                             <CheckBox x:Name="AutoInjectCheck" Style="{StaticResource ToggleCheckBox}"
                                       IsChecked="True" VerticalAlignment="Center"/>
                             <StackPanel Margin="4,0,0,0">
-                                <TextBlock Text="Auto-inject on process start"
+                                <TextBlock Text="Auto-bind when I open this app"
                                            FontSize="13" FontWeight="SemiBold" Foreground="#1A1A1A"/>
-                                <TextBlock Text="Automatically bind when this process launches"
-                                           FontSize="11" Foreground="#999"/>
+                                <TextBlock Text="While NetBind Pro runs in the tray, opening this app yourself routes it through the adapter automatically — no need to launch it from here."
+                                           FontSize="11" Foreground="#999" TextWrapping="Wrap"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>

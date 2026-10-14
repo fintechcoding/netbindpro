@@ -227,6 +227,21 @@ public partial class AddRuleWindow : Window
             return;
         }
 
+        // Hardened browsers can't be bound: Chrome/Edge abort with a Control Flow Guard
+        // fail-fast when injected, and Firefox's launcher spawns the real process below the
+        // hooks. Block them up front instead of letting the user add a rule that won't work.
+        if (IsUnsupportedBrowser(processName) && _editingRule == null)
+        {
+            MessageBox.Show(
+                $"{processName} can't be routed by NetBind Pro.\n\n" +
+                "Chrome, Edge and Firefox block being bound — their security (Control Flow " +
+                "Guard / launcher process) rejects it, so they'd crash or leak.\n\n" +
+                "Use native apps instead — Remote Desktop (mstsc.exe), Telegram, and similar " +
+                "all work. Kernel-level browser support (WFP) is planned for a future version.",
+                "Not supported", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         if (_selectedAdapter == null)
         {
             MessageBox.Show("Please select a network adapter.",
@@ -277,6 +292,14 @@ public partial class AddRuleWindow : Window
     {
         DialogResult = false;
         Close();
+    }
+
+    /// <summary>A browser whose exploit mitigations prevent injection-based binding.</summary>
+    private static bool IsUnsupportedBrowser(string processName)
+    {
+        var name = System.IO.Path.GetFileNameWithoutExtension(processName).ToLowerInvariant();
+        return name is "chrome" or "msedge" or "firefox" or "brave" or "opera"
+            or "vivaldi" or "chromium" or "thorium" or "iexplore";
     }
 }
 

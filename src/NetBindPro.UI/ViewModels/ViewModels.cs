@@ -48,7 +48,7 @@ public partial class RuleItemVm : ObservableObject
     public string IconText       { get; }
     public string IconBackground { get; }
     public string IconForeground { get; }
-    public string SubText        => Rule.AutoInject ? "⚡ auto-inject" : "manual";
+    public string SubText        => Rule.AutoInject ? "⚡ auto-binds when opened" : "launch manually (▶)";
     public string AdapterTagBackground { get; }
     public string AdapterTextColor     { get; }
     public string AdapterDotColor      { get; }
