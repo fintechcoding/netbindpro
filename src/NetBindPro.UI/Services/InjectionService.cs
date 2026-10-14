@@ -36,11 +36,12 @@ public sealed class InjectionService
     /// <summary>
     /// Injects the binding hook into an already-running process.
     /// </summary>
-    public async Task<InjectionResult> InjectAsync(int pid, string adapterId, string adapterName)
+    public async Task<InjectionResult> InjectAsync(int pid, string adapterId, string adapterName, bool killSwitch = true)
     {
-        _logger.LogInformation("Injecting PID {Pid} → adapter {Adapter}", pid, adapterName);
+        _logger.LogInformation("Injecting PID {Pid} → adapter {Adapter} (kill-switch {Ks})", pid, adapterName, killSwitch);
 
         var args = $"--network \"{adapterId}\" --attach {pid}";
+        if (!killSwitch) args += " --no-killswitch";
         return await RunHookAsync(args, pid, adapterName);
     }
 
@@ -49,7 +50,7 @@ public sealed class InjectionService
     /// </summary>
     public async Task<InjectionResult> ExecuteAndInjectAsync(
         string exePath, string adapterId, string adapterName,
-        string arguments = "", int delayMs = 500, bool debug = false)
+        string arguments = "", int delayMs = 500, bool debug = false, bool killSwitch = true)
     {
         _logger.LogInformation("Execute+inject {Exe} → adapter {Adapter}", exePath, adapterName);
 
@@ -58,6 +59,8 @@ public sealed class InjectionService
             args += $" --args \"{arguments}\"";
         if (debug)
             args += " --debug";
+        if (!killSwitch)
+            args += " --no-killswitch";
 
         return await RunHookAsync(args, 0, adapterName);
     }

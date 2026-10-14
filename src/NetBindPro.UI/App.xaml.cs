@@ -51,6 +51,9 @@ public partial class App : Application
             // Bring up any tunnels flagged auto-start (non-blocking).
             _ = StartAutoStartTunnelsAsync();
 
+            // Check for a newer release in the background (non-blocking).
+            _ = CheckForUpdatesAsync(prompt: true);
+
             // System tray icon
             InitTrayIcon();
 
@@ -121,6 +124,43 @@ public partial class App : Application
         }
     }
 
+    // ─── Updates ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Checks GitHub for a newer release. When <paramref name="prompt"/> is true and an
+    /// update exists, offers to download and run it. Returns true if an update was found.
+    /// </summary>
+    internal async Task<bool> CheckForUpdatesAsync(bool prompt)
+    {
+        try
+        {
+            var svc    = _services!.GetRequiredService<UpdateService>();
+            var update = await svc.CheckForUpdateAsync();
+            if (update == null) return false;
+
+            if (prompt)
+            {
+                var answer = System.Windows.MessageBox.Show(
+                    $"NetBind Pro {update.Version} is available (you have {UpdateService.CurrentVersion}).\n\nDownload and install it now?",
+                    "Update available", MessageBoxButton.YesNo, MessageBoxImage.Information);
+
+                if (answer == MessageBoxResult.Yes)
+                {
+                    var (ok, message) = await svc.DownloadAndRunAsync(update);
+                    System.Windows.MessageBox.Show(message, "NetBind Pro",
+                        MessageBoxButton.OK, ok ? MessageBoxImage.Information : MessageBoxImage.Warning);
+                    if (ok) ExitApplication();
+                }
+            }
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LogCrash("Update check", ex);
+            return false;
+        }
+    }
+
     // ─── DI configuration ────────────────────────────────────────────────────
 
     private static ServiceCollection ConfigureServices()
@@ -137,6 +177,7 @@ public partial class App : Application
         services.AddSingleton<InjectionService>();
         services.AddSingleton<ProcessMonitorService>();
         services.AddSingleton<WireGuardService>();
+        services.AddSingleton<UpdateService>();
 
         // ViewModels
         services.AddSingleton<MainViewModel>();

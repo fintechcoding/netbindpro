@@ -59,6 +59,11 @@ internal static class Program
             "--no-title",
             "Do not modify the bound process's window title");
 
+        var noKillSwitchOpt = new Option<bool>(
+            "--no-killswitch",
+            "Allow traffic to fall back to the default route if the adapter is down " +
+            "(disables the per-process kill switch; by default a down adapter blocks the process).");
+
         var listCmd = new Command("list", "List all available network adapters");
         listCmd.AddAlias("--list");
         listCmd.SetHandler(HandleList);
@@ -71,11 +76,20 @@ internal static class Program
         root.AddOption(delayOpt);
         root.AddOption(debugOpt);
         root.AddOption(noTitleOpt);
+        root.AddOption(noKillSwitchOpt);
 
-        root.SetHandler(async (network, execute, attach, cmdArgs, delay, debug, noTitle) =>
+        root.SetHandler(async (ctx) =>
         {
-            await HandleBind(network, execute, attach, cmdArgs, delay, debug, !noTitle);
-        }, networkOpt, executeOpt, attachOpt, argsOpt, delayOpt, debugOpt, noTitleOpt);
+            var network  = ctx.ParseResult.GetValueForOption(networkOpt);
+            var execute  = ctx.ParseResult.GetValueForOption(executeOpt);
+            var attach   = ctx.ParseResult.GetValueForOption(attachOpt);
+            var cmdArgs  = ctx.ParseResult.GetValueForOption(argsOpt);
+            var delay    = ctx.ParseResult.GetValueForOption(delayOpt);
+            var debug    = ctx.ParseResult.GetValueForOption(debugOpt);
+            var noTitle  = ctx.ParseResult.GetValueForOption(noTitleOpt);
+            var noKill   = ctx.ParseResult.GetValueForOption(noKillSwitchOpt);
+            await HandleBind(network, execute, attach, cmdArgs, delay, debug, !noTitle, killSwitch: !noKill);
+        });
 
         return root;
     }
@@ -122,7 +136,7 @@ internal static class Program
 
     private static Task HandleBind(
         string? networkId, FileInfo? execute, int attach,
-        string? cmdArgs, int delay, bool debug, bool changeTitle)
+        string? cmdArgs, int delay, bool debug, bool changeTitle, bool killSwitch)
     {
         try
         {
@@ -163,12 +177,12 @@ internal static class Program
                 }
 
                 Console.WriteLine($"[NetBind Pro] Execute : {execute.FullName}");
-                ExecuteAndInject(nic.Id, execute.FullName, cmdArgs ?? string.Empty, delay, debug, changeTitle);
+                ExecuteAndInject(nic.Id, execute.FullName, cmdArgs ?? string.Empty, delay, debug, changeTitle, killSwitch);
             }
             else if (attach > 0)
             {
                 Console.WriteLine($"[NetBind Pro] Attach  : PID {attach}");
-                InjectProcess(nic.Id, attach, delay, debug, changeTitle);
+                InjectProcess(nic.Id, attach, delay, debug, changeTitle, killSwitch);
             }
             else
             {
@@ -191,7 +205,7 @@ internal static class Program
 
     private static void ExecuteAndInject(
         string networkId, string exePath, string arguments,
-        int delay, bool debug, bool changeTitle)
+        int delay, bool debug, bool changeTitle, bool killSwitch)
     {
         var injector = Assembly.GetExecutingAssembly().Location;
 
@@ -207,7 +221,7 @@ internal static class Program
                     exePath, arguments, 0,
                     injector, injector,
                     out var pid,
-                    networkId, injector, delay, changeTitle, debug);
+                    networkId, injector, delay, changeTitle, debug, killSwitch);
 
                 Console.WriteLine($"[NetBind Pro] SUCCESS — PID {pid} bound to adapter");
                 Console.ForegroundColor = ConsoleColor.Green;
@@ -228,11 +242,11 @@ internal static class Program
         Console.WriteLine($"[NetBind Pro] Started PID {proc.Id} — waiting {Math.Max(delay, 1000)} ms...");
         Thread.Sleep(Math.Max(delay, 1000));
 
-        InjectProcess(networkId, proc.Id, delay, debug, changeTitle);
+        InjectProcess(networkId, proc.Id, delay, debug, changeTitle, killSwitch);
     }
 
     private static void InjectProcess(
-        string networkId, int pid, int delay, bool debug, bool changeTitle)
+        string networkId, int pid, int delay, bool debug, bool changeTitle, bool killSwitch)
     {
         var injector = Assembly.GetExecutingAssembly().Location;
 
@@ -244,7 +258,7 @@ internal static class Program
             {
                 RemoteHooking.Inject(
                     pid, injector, injector,
-                    networkId, injector, delay, changeTitle, debug);
+                    networkId, injector, delay, changeTitle, debug, killSwitch);
 
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine($"[NetBind Pro] SUCCESS — PID {pid} bound to adapter");

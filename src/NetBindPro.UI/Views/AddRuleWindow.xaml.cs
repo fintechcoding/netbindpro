@@ -209,7 +209,9 @@ public partial class AddRuleWindow : Window
             adapterName:  _selectedAdapter.Name,
             processPath:  processPath,
             notes:        string.IsNullOrWhiteSpace(NotesBox.Text) ? null : NotesBox.Text.Trim(),
-            tunnelName:   tunnelName
+            tunnelName:   tunnelName,
+            killSwitch:   KillSwitchCheck.IsChecked == true,
+            autoInject:   AutoInjectCheck.IsChecked == true
         );
 
         DialogResult = true;

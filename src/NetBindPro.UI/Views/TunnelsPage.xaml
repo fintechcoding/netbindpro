@@ -101,6 +101,9 @@
                                               ToolTip="Start this tunnel automatically when NetBind Pro launches"/>
                                     <TextBlock Text="Auto" FontSize="11" Foreground="#777" VerticalAlignment="Center"
                                                Margin="0,0,12,0"/>
+                                    <Button Style="{StaticResource GhostButton}" Content="Auto-MTU" FontSize="11"
+                                            Padding="10,4" Margin="0,0,8,0" Click="AutoMtu_Click"
+                                            ToolTip="Detect the best MTU for this tunnel (useful inside another VPN)"/>
                                     <Button Style="{StaticResource GhostButton}" Content="Check IP" FontSize="11"
                                             Padding="10,4" Margin="0,0,8,0" Click="CheckIp_Click"
                                             IsEnabled="{Binding IsRunning}"/>

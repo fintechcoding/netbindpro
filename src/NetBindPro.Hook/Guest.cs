@@ -29,6 +29,7 @@ public sealed class Guest : IEntryPoint
     private readonly string _injectorPath;
     private readonly int    _delayMs;
     private readonly bool   _changeTitle;
+    private readonly bool   _killSwitch;
     private readonly string? _logPath;
 
     private readonly List<LocalHook> _hooks = [];
@@ -48,12 +49,14 @@ public sealed class Guest : IEntryPoint
         string injectorPath,
         int delayMs,
         bool changeTitle,
-        bool debug)
+        bool debug,
+        bool killSwitch)
     {
         _adapterId    = adapterId;
         _injectorPath = injectorPath;
         _delayMs      = delayMs;
         _changeTitle  = changeTitle;
+        _killSwitch   = killSwitch;
 
         if (debug)
         {
@@ -78,9 +81,10 @@ public sealed class Guest : IEntryPoint
         string adapterId,
         int delayMs,
         bool changeTitle,
-        bool debug)
+        bool debug,
+        bool killSwitch)
     {
-        Log("Run", "Installing hooks");
+        Log("Run", $"Installing hooks (kill-switch: {killSwitch})");
 
         // Pre-load ws2_32 so its exports are available at their final addresses
         var ws2Handle = NativeWinsock.LoadLibraryW("ws2_32.dll");
@@ -203,9 +207,9 @@ public sealed class Guest : IEntryPoint
 
     private int OnConnect(IntPtr s, IntPtr name, int namelen)
     {
-        if (!EnsureBound(s, name))
+        if (!EnsureBound(s, name) && _killSwitch)
         {
-            // Kill-switch: the target adapter is down / has no usable IP.
+            // Kill-switch ON: the target adapter is down / has no usable IP.
             // Refuse the connection instead of leaking it out the default route.
             NativeWinsock.WSASetLastError(WSAENETUNREACH);
             return SOCKET_ERROR;
@@ -218,7 +222,7 @@ public sealed class Guest : IEntryPoint
     private int OnWSAConnect(IntPtr s, IntPtr name, int namelen,
         IntPtr lpCallerData, IntPtr lpCalleeData, IntPtr lpSQOS, IntPtr lpGQOS)
     {
-        if (!EnsureBound(s, name))
+        if (!EnsureBound(s, name) && _killSwitch)
         {
             NativeWinsock.WSASetLastError(WSAENETUNREACH);
             return SOCKET_ERROR;
@@ -266,6 +270,7 @@ public sealed class Guest : IEntryPoint
             var aid        = _adapterId;
             var delay      = _delayMs;
             var logEnabled = _logPath != null;
+            var ks         = _killSwitch;
 
             // Inject asynchronously to avoid blocking the parent process
             new Thread(() =>
@@ -277,7 +282,7 @@ public sealed class Guest : IEntryPoint
                     {
                         RemoteHooking.Inject(
                             childPid, injPath, injPath,
-                            aid, injPath, delay, false, logEnabled);
+                            aid, injPath, delay, false, logEnabled, ks);
                         Log("CreateProcess", $"Child PID {childPid} injected successfully");
                         return;
                     }

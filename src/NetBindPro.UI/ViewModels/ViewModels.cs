@@ -100,7 +100,7 @@ public partial class RuleItemVm : ObservableObject
 
         foreach (var proc in processes)
         {
-            var result = await _injection.InjectAsync(proc.Id, adapterId, adapterName);
+            var result = await _injection.InjectAsync(proc.Id, adapterId, adapterName, Rule.KillSwitch);
             if (!result.Success)
                 MessageBox.Show($"Injection failed for PID {proc.Id}: {result.Message}",
                     "NetBind Pro", MessageBoxButton.OK, MessageBoxImage.Warning);

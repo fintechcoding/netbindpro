@@ -95,7 +95,7 @@ public sealed class ProcessMonitorService : IDisposable
                 "Auto-injecting {Process} (PID {Pid}) → {Adapter}",
                 processName, pid, adapterName);
 
-            var result = await _injection.InjectAsync(pid, adapterId, adapterName);
+            var result = await _injection.InjectAsync(pid, adapterId, adapterName, rule.KillSwitch);
             if (!result.Success)
                 _logger.LogWarning("Auto-inject failed for {Process}: {Msg}", processName, result.Message);
         }

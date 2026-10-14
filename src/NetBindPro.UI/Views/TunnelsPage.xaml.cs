@@ -172,6 +172,28 @@ public partial class TunnelsPage : Page
         _profile.UpdateTunnel(vm.Tunnel);
     }
 
+    // ─── Auto-MTU ────────────────────────────────────────────────────────────
+
+    private async void AutoMtu_Click(object sender, RoutedEventArgs e)
+    {
+        if (ResolveVm(sender) is not { } vm) return;
+
+        vm.SetExitIp("Probing MTU…");
+        try
+        {
+            var (ok, mtu, message) = await WireGuardService.ProbeMtuAsync(vm.Tunnel.Endpoint);
+            _wg.SetMtu(vm.Tunnel, mtu);
+            _profile.UpdateTunnel(vm.Tunnel);
+
+            var restart = vm.IsRunning ? " Restart the tunnel to apply." : "";
+            vm.SetExitIp($"MTU set to {mtu}. {message}{restart}");
+        }
+        catch (Exception ex)
+        {
+            vm.SetExitIp($"MTU probe failed: {ex.Message}");
+        }
+    }
+
     // ─── Delete ──────────────────────────────────────────────────────────────
 
     private async void Delete_Click(object sender, RoutedEventArgs e)
