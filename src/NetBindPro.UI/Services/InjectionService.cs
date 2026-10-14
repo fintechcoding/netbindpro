@@ -23,9 +23,14 @@ public sealed class InjectionService
     {
         _logger = logger;
 
-        // Hook.exe lives alongside the UI exe
+        // Hook.exe lives in a "hook" subfolder — it's a .NET Framework 4.8 build and
+        // carries old framework-shim DLLs (System.Memory 4.0.1.1, etc.) that would
+        // otherwise overwrite the self-contained .NET 10 UI's runtime assemblies and
+        // crash WPF on launch. Keeping it isolated avoids that collision.
         var dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
-        _hookExePath = Path.Combine(dir, "NetBindPro.Hook.exe");
+        _hookExePath = Path.Combine(dir, "hook", "NetBindPro.Hook.exe");
+        if (!File.Exists(_hookExePath))
+            _hookExePath = Path.Combine(dir, "NetBindPro.Hook.exe"); // fallback (dev layout)
     }
 
     /// <summary>

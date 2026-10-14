@@ -38,6 +38,14 @@ public sealed class BindingRule
     /// <summary>Whether to automatically inject when the process starts (requires process monitor).</summary>
     public bool AutoInject { get; set; } = true;
 
+    /// <summary>
+    /// When <c>true</c> (default), the process is blocked from the internet entirely if its
+    /// bound adapter/tunnel is down — no fallback to the normal connection (no leak). When
+    /// <c>false</c>, outbound connections fall through to the default route if the adapter
+    /// is unavailable.
+    /// </summary>
+    public bool KillSwitch { get; set; } = true;
+
     /// <summary>Notes or description for this rule.</summary>
     public string? Notes { get; set; }
 

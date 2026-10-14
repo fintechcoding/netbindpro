@@ -70,18 +70,20 @@ jobs:
       - name: Build Hook (net48, x64)
         run: dotnet build src/NetBindPro.Hook/NetBindPro.Hook.csproj --configuration Release /p:Platform=x64
 
-      - name: Copy Hook x64 output (exe + EasyHook natives) next to UI
+      - name: Copy Hook x64 output into an isolated hook\ subfolder
         shell: pwsh
-        run: Copy-Item src/NetBindPro.Hook/bin/x64/Release/net48/* publish/win-x64 -Recurse -Force
+        run: |
+          New-Item -ItemType Directory -Path publish/win-x64/hook -Force | Out-Null
+          Copy-Item src/NetBindPro.Hook/bin/x64/Release/net48/* publish/win-x64/hook -Recurse -Force
 
       - name: Build Hook (net48, x86)
         run: dotnet build src/NetBindPro.Hook/NetBindPro.Hook.csproj --configuration Release /p:Platform=x86
 
-      - name: Copy Hook x86 output into x86 subfolder
+      - name: Copy Hook x86 output into hook\x86 subfolder
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Path publish/win-x64/x86 -Force | Out-Null
-          Copy-Item src/NetBindPro.Hook/bin/x86/Release/net48/* publish/win-x64/x86 -Recurse -Force
+          New-Item -ItemType Directory -Path publish/win-x64/hook/x86 -Force | Out-Null
+          Copy-Item src/NetBindPro.Hook/bin/x86/Release/net48/* publish/win-x64/hook/x86 -Recurse -Force
 
       - name: Build installer (Inno Setup)
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2

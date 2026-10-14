@@ -111,17 +111,20 @@ if ($Publish -or $Installer) {
 
     # Hook: .NET Framework 4.8 (required by EasyHook). Build and copy its output —
     # the exe plus EasyHook's native loaders — next to the UI.
+    # Hook goes in its OWN subfolder — its net48 framework-shim DLLs (System.Memory
+    # 4.0.1.1, etc.) must NOT overwrite the self-contained UI's .NET 10 runtime assemblies.
     dotnet build "src\NetBindPro.Hook\NetBindPro.Hook.csproj" `
         --configuration Release /p:Platform=x64
     Assert-ExitCode
-    Copy-Item "src\NetBindPro.Hook\bin\x64\Release\net48\*" $PublishDir -Recurse -Force
+    New-Item -ItemType Directory -Path "$PublishDir\hook" -Force | Out-Null
+    Copy-Item "src\NetBindPro.Hook\bin\x64\Release\net48\*" "$PublishDir\hook" -Recurse -Force
 
-    # x86 Hook (for 32-bit targets) into an x86\ subfolder with its own natives
+    # x86 Hook (for 32-bit targets)
     dotnet build "src\NetBindPro.Hook\NetBindPro.Hook.csproj" `
         --configuration Release /p:Platform=x86
     Assert-ExitCode
-    New-Item -ItemType Directory -Path "$PublishDir\x86" -Force | Out-Null
-    Copy-Item "src\NetBindPro.Hook\bin\x86\Release\net48\*" "$PublishDir\x86" -Recurse -Force
+    New-Item -ItemType Directory -Path "$PublishDir\hook\x86" -Force | Out-Null
+    Copy-Item "src\NetBindPro.Hook\bin\x86\Release\net48\*" "$PublishDir\hook\x86" -Recurse -Force
 
     Write-Host "  ✓ Publish complete → $PublishDir" -ForegroundColor Green
 }

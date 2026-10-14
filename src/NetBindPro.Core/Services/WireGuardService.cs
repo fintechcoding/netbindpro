@@ -124,21 +124,81 @@ public sealed class WireGuardService
             throw new InvalidOperationException("Could not derive a valid tunnel name from the file.");
 
         var destPath = Path.Combine(TunnelsDirectory, name + ".conf");
-        File.Copy(sourceConfPath, destPath, overwrite: true);
+        var rawText  = File.ReadAllText(sourceConfPath);
+
+        var existingMtu = ParseMtu(rawText);
+
+        // Rewrite [Interface] with `Table = off` so WireGuard does NOT take over the
+        // system's default route or install its firewall "kill switch" that blocks all
+        // non-tunnel traffic — both of which break per-process routing (the whole PC
+        // would go through the tunnel and other apps would lose the internet). We add a
+        // high-metric route ourselves on start so only source-bound sockets use it.
+        var rewritten = RewriteInterface(rawText, existingMtu);
+        File.WriteAllText(destPath, rewritten);
         // The tunnels directory lives under %APPDATA% (per-user) so the private key
         // in the config is not world-readable. A future pass can tighten the ACL further.
 
-        var text = File.ReadAllText(destPath);
         var tunnel = new TunnelConfig
         {
             Name       = name,
             ConfigPath = destPath,
-            Endpoint   = MatchValue(text, @"Endpoint\s*=\s*(.+)"),
-            Address    = MatchValue(text, @"Address\s*=\s*(.+)"),
+            Endpoint   = MatchValue(rawText, @"Endpoint\s*=\s*(.+)"),
+            Address    = MatchValue(rawText, @"Address\s*=\s*(.+)"),
+            Mtu        = existingMtu,
         };
 
-        _logger?.LogInformation("Imported tunnel {Name} from {Source}", name, sourceConfPath);
+        _logger?.LogInformation("Imported tunnel {Name} from {Source} (Table=off applied)", name, sourceConfPath);
         return tunnel;
+    }
+
+    /// <summary>
+    /// Rewrites the <c>[Interface]</c> section to guarantee <c>Table = off</c> and,
+    /// when <paramref name="mtu"/> is set, an <c>MTU</c> line. Existing Table/MTU lines
+    /// are replaced. Other sections and keys are preserved verbatim.
+    /// </summary>
+    private static string RewriteInterface(string confText, int? mtu)
+    {
+        var lines   = confText.Replace("\r\n", "\n").Split('\n').ToList();
+        var output  = new List<string>();
+        var inIface = false;
+        var injected = false;
+
+        void InjectDirectives()
+        {
+            output.Add("Table = off");
+            if (mtu is > 0) output.Add($"MTU = {mtu}");
+            injected = true;
+        }
+
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+
+            if (trimmed.StartsWith('['))
+            {
+                // Leaving the [Interface] section without having injected (empty section) — inject now.
+                if (inIface && !injected) InjectDirectives();
+                inIface = trimmed.Equals("[Interface]", StringComparison.OrdinalIgnoreCase);
+                output.Add(line);
+                if (inIface) { injected = false; InjectDirectives(); }
+                continue;
+            }
+
+            // Drop any existing Table/MTU lines inside [Interface]; we control them.
+            if (inIface && Regex.IsMatch(trimmed, @"^(Table|MTU)\s*=", RegexOptions.IgnoreCase))
+                continue;
+
+            output.Add(line);
+        }
+
+        if (inIface && !injected) InjectDirectives();
+        return string.Join(Environment.NewLine, output);
+    }
+
+    private static int? ParseMtu(string confText)
+    {
+        var v = MatchValue(confText, @"MTU\s*=\s*(\d+)");
+        return int.TryParse(v, out var n) && n > 0 ? n : null;
     }
 
     // ─── Lifecycle ───────────────────────────────────────────────────────────
@@ -161,8 +221,51 @@ public sealed class WireGuardService
         if (code != 0)
             return (false, string.IsNullOrWhiteSpace(err) ? $"wireguard.exe exited with {code}." : err.Trim());
 
+        // Wait for the wintun adapter to come up, then add a high-metric default route
+        // through it. With Table=off WireGuard adds no routes, so without this a socket
+        // bound to the tunnel IP has no path out. The high metric keeps the tunnel from
+        // becoming the system default — only source-bound (injected) sockets use it.
+        for (var i = 0; i < 12 && ResolveAdapter(tunnel.Name) == null; i++)
+            await Task.Delay(500, ct).ConfigureAwait(false);
+        await TryAddTunnelRouteAsync(tunnel.Name, ct).ConfigureAwait(false);
+
         _logger?.LogInformation("Started tunnel {Name}", tunnel.Name);
         return (true, "Tunnel started.");
+    }
+
+    /// <summary>
+    /// Adds a high-metric default route via the tunnel interface (best-effort) so that
+    /// source-bound sockets egress through it while the rest of the system keeps using
+    /// its normal default route.
+    /// </summary>
+    private async Task TryAddTunnelRouteAsync(string tunnelName, CancellationToken ct)
+    {
+        try
+        {
+            var nic = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces()
+                .FirstOrDefault(n =>
+                    n.Name.Equals(tunnelName, StringComparison.OrdinalIgnoreCase) &&
+                    n.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up);
+            if (nic == null) { _logger?.LogWarning("Route: tunnel adapter {Name} not up", tunnelName); return; }
+
+            int ifIndex;
+            try { ifIndex = nic.GetIPProperties().GetIPv4Properties().Index; }
+            catch { _logger?.LogWarning("Route: no IPv4 props for {Name}", tunnelName); return; }
+
+            // store=active so it's not persisted; it goes away when the tunnel stops.
+            var (c, _, e) = await RunProcessAsync("netsh",
+                ["interface", "ipv4", "add", "route", "prefix=0.0.0.0/0",
+                 $"interface={ifIndex}", "metric=9000", "store=active"], ct).ConfigureAwait(false);
+
+            if (c != 0 && !e.Contains("already exists", StringComparison.OrdinalIgnoreCase))
+                _logger?.LogWarning("Route add failed for {Name}: {Err}", tunnelName, e.Trim());
+            else
+                _logger?.LogInformation("High-metric route added via tunnel {Name} (if {Index})", tunnelName, ifIndex);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Route add error for {Name}", tunnelName);
+        }
     }
 
     /// <summary>Brings the tunnel down by removing its tunnel service.</summary>
@@ -241,11 +344,15 @@ public sealed class WireGuardService
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
-    private static async Task<(int Code, string Out, string Err)> RunWgAsync(string[] args, CancellationToken ct)
+    private static Task<(int Code, string Out, string Err)> RunWgAsync(string[] args, CancellationToken ct)
+        => RunProcessAsync(WireGuardExePath!, args, ct);
+
+    private static async Task<(int Code, string Out, string Err)> RunProcessAsync(
+        string fileName, string[] args, CancellationToken ct)
     {
         var psi = new ProcessStartInfo
         {
-            FileName               = WireGuardExePath!,
+            FileName               = fileName,
             RedirectStandardOutput = true,
             RedirectStandardError  = true,
             UseShellExecute        = false,
@@ -261,6 +368,95 @@ public sealed class WireGuardService
         await proc.WaitForExitAsync(ct).ConfigureAwait(false);
 
         return (proc.ExitCode, await outTask.ConfigureAwait(false), await errTask.ConfigureAwait(false));
+    }
+
+    // ─── MTU ─────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Probes the usable interface MTU for this tunnel by finding the path MTU to its
+    /// endpoint (ICMP with the Don't-Fragment bit) and subtracting WireGuard's overhead.
+    /// Useful when the tunnel is nested inside another VPN (e.g. OpenVPN), where the
+    /// default 1420 is too large and the handshake or traffic silently fails.
+    /// Returns a recommended MTU in [1280, 1420]; falls back to 1280 if ICMP is blocked.
+    /// </summary>
+    public static async Task<(bool Ok, int Mtu, string Message)> ProbeMtuAsync(
+        string? endpointHostPort, CancellationToken ct = default)
+    {
+        const int wgOverhead = 80;   // WG + UDP + IP headroom (IPv6-safe)
+        const int floor = 1280, ceiling = 1420;
+
+        var host = ParseEndpointHost(endpointHostPort);
+        if (string.IsNullOrWhiteSpace(host))
+            return (false, floor, "No endpoint in config; using safe MTU 1280.");
+
+        using var ping = new System.Net.NetworkInformation.Ping();
+        var opts = new System.Net.NetworkInformation.PingOptions(64, dontFragment: true);
+        var buf  = (int payload) => new byte[payload];
+
+        // Sanity: can we reach it at all with a small DF packet?
+        try
+        {
+            var probe = await ping.SendPingAsync(host, 1500, buf(500), opts).ConfigureAwait(false);
+            if (probe.Status != System.Net.NetworkInformation.IPStatus.Success)
+                return (false, floor, $"Endpoint doesn't answer ping ({probe.Status}); using safe MTU 1280.");
+        }
+        catch (Exception ex)
+        {
+            return (false, floor, $"Ping failed ({ex.Message}); using safe MTU 1280.");
+        }
+
+        // Binary-search the largest DF payload that still gets through.
+        int lo = 500, hi = ceiling - 28, best = 500;
+        while (lo <= hi)
+        {
+            ct.ThrowIfCancellationRequested();
+            var mid = (lo + hi) / 2;
+            bool ok;
+            try
+            {
+                var r = await ping.SendPingAsync(host, 1500, buf(mid), opts).ConfigureAwait(false);
+                ok = r.Status == System.Net.NetworkInformation.IPStatus.Success;
+            }
+            catch { ok = false; }
+
+            if (ok) { best = mid; lo = mid + 1; }
+            else    { hi = mid - 1; }
+        }
+
+        var pathMtu = best + 28;                 // + IP(20) + ICMP(8)
+        var ifaceMtu = Math.Clamp(pathMtu - wgOverhead, floor, ceiling);
+        return (true, ifaceMtu, $"Path MTU ~{pathMtu}, recommended tunnel MTU {ifaceMtu}.");
+    }
+
+    /// <summary>
+    /// Writes <paramref name="mtu"/> into the tunnel's stored config (rewriting the
+    /// [Interface] MTU line) and updates <paramref name="tunnel"/>. The tunnel must be
+    /// restarted for the change to take effect.
+    /// </summary>
+    public void SetMtu(TunnelConfig tunnel, int? mtu)
+    {
+        tunnel.Mtu = mtu is > 0 ? mtu : null;
+        if (File.Exists(tunnel.ConfigPath))
+        {
+            var text = File.ReadAllText(tunnel.ConfigPath);
+            File.WriteAllText(tunnel.ConfigPath, RewriteInterface(text, tunnel.Mtu));
+        }
+        _logger?.LogInformation("Set MTU {Mtu} for tunnel {Name}", tunnel.Mtu, tunnel.Name);
+    }
+
+    private static string? ParseEndpointHost(string? endpointHostPort)
+    {
+        if (string.IsNullOrWhiteSpace(endpointHostPort)) return null;
+        var ep = endpointHostPort.Trim();
+        // [ipv6]:port
+        if (ep.StartsWith('['))
+        {
+            var end = ep.IndexOf(']');
+            return end > 1 ? ep[1..end] : null;
+        }
+        // host:port  (take everything before the last colon)
+        var colon = ep.LastIndexOf(':');
+        return colon > 0 ? ep[..colon] : ep;
     }
 
     private static string SanitizeName(string raw)

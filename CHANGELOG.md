@@ -7,6 +7,27 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [2.3.3] — 2026-10-14 — The real launch fix
+
+### Fixed
+- **The actual cause of the launch crash.** The net48 Hook's output carries old
+  framework-shim DLLs (`System.Memory` 4.0.1.1, `System.Buffers`, `System.Numerics.Vectors`,
+  `System.Runtime.CompilerServices.Unsafe`). It was being copied into the same folder as the
+  self-contained UI and **overwrote the UI's .NET 10 runtime assemblies**, so WPF crashed on
+  launch. The Hook now lives in an isolated `hook\` subfolder and `InjectionService` runs it
+  from there — no collision. Verified by launching the packaged build. (This also explains
+  why the issue appeared on both .NET 8 and .NET 10 — it was never an SDK/runtime problem.)
+
+### Added (tunnel correctness)
+- **WireGuard `Table = off` on import** + a high-metric default route added when the tunnel
+  starts, so a `0.0.0.0/0` tunnel no longer hijacks the whole PC's internet or blocks other
+  apps — only processes bound to it egress through it.
+- **MTU auto-probe** (`ProbeMtuAsync`) and `SetMtu` for tunnels nested inside another VPN.
+- **Per-process kill-switch** flag on rules (`BindingRule.KillSwitch`).
+- **Update service** (`UpdateService`) that checks GitHub Releases for a newer version.
+
+---
+
 ## [2.3.2] — 2026-10-14 — App launches
 
 ### Fixed
