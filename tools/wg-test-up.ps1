@@ -29,7 +29,8 @@ foreach ($line in ($raw -replace "`r`n", "`n").Split("`n")) {
     if ($inIface -and $StripDns -and $tr -imatch '^DNS\s*=') { continue }
     $out.Add($line)
 }
-$safeDir  = Join-Path $env:LOCALAPPDATA 'NetBindPro\test-tunnels'
+# ProgramData (not per-user AppData) so the LocalSystem tunnel service can read it.
+$safeDir  = 'C:\ProgramData\NetBindPro\test-tunnels'
 New-Item -ItemType Directory -Force $safeDir | Out-Null
 $safeConf = Join-Path $safeDir "$name.conf"
 Set-Content -LiteralPath $safeConf -Value ($out -join "`r`n") -Encoding ascii

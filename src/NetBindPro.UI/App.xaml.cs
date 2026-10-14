@@ -19,6 +19,7 @@ public partial class App : Application
     private ServiceProvider? _services;
     private NotifyIcon?      _trayIcon;
     private MainWindow?      _mainWindow;
+    private bool            _isExiting;   // true once a real shutdown is underway
 
     // ─── Startup ─────────────────────────────────────────────────────────────
 
@@ -241,14 +242,26 @@ public partial class App : Application
 
     private void OnMainWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        var settings = _services!.GetRequiredService<ProfileService>().Settings;
+        // A real exit (tray → Exit, or the installer closing us) disposes the service
+        // provider first; don't touch it then, and let the window close. Without this the
+        // closing handler hit a disposed IServiceProvider and threw ObjectDisposedException,
+        // which surfaced as a crash dialog every time the app was closed.
+        if (_isExiting) return;
 
-        if (settings.MinimizeToTray)
+        try
         {
-            e.Cancel = true;
-            _mainWindow!.Hide();
-            _trayIcon?.ShowBalloonTip(2000, "NetBind Pro",
-                "Running in the background. Double-click to reopen.", ToolTipIcon.Info);
+            var settings = _services!.GetRequiredService<ProfileService>().Settings;
+            if (settings.MinimizeToTray)
+            {
+                e.Cancel = true;
+                _mainWindow!.Hide();
+                _trayIcon?.ShowBalloonTip(2000, "NetBind Pro",
+                    "Running in the background. Double-click to reopen.", ToolTipIcon.Info);
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+            // Services already gone — we're shutting down; just let it close.
         }
     }
 
@@ -256,6 +269,7 @@ public partial class App : Application
 
     private void ExitApplication()
     {
+        _isExiting = true;   // tell OnMainWindowClosing not to touch disposed services
         _services?.GetService<ProcessMonitorService>()?.Stop();
         _trayIcon?.Dispose();
         _services?.Dispose();

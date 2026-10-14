@@ -72,16 +72,6 @@ internal delegate bool CreateProcessDelegate(
     IntPtr lpEnvironment, IntPtr lpCurrentDirectory,
     IntPtr lpStartupInfo, out ProcessInformation lpProcessInformation);
 
-// CreateProcessInternalW is the undocumented funnel that CreateProcessW/A (and some
-// apps, e.g. Firefox's launcher) call directly. Hooking it catches child spawns that
-// bypass the public kernel32 entry points. Raw IntPtrs are used for the last two
-// out-params because callers legitimately pass NULL for hNewToken.
-internal delegate bool CreateProcessInternalWDelegate(
-    IntPtr hUserToken, IntPtr lpApplicationName, IntPtr lpCommandLine,
-    IntPtr lpProcessAttributes, IntPtr lpThreadAttributes,
-    bool bInheritHandles, uint dwCreationFlags,
-    IntPtr lpEnvironment, IntPtr lpCurrentDirectory,
-    IntPtr lpStartupInfo, IntPtr lpProcessInformation, IntPtr hNewToken);
 
 // ─── P/Invoke declarations ────────────────────────────────────────────────────
 
@@ -89,6 +79,13 @@ internal static class NativeWinsock
 {
     [DllImport("ws2_32.dll", SetLastError = true)]
     public static extern IntPtr socket(int af, int type, int protocol);
+
+    // Must preserve the caller's protocol info and flags (e.g. WSA_FLAG_OVERLAPPED):
+    // Chrome's network service creates overlapped sockets, and substituting a plain
+    // socket() breaks its async I/O and the browser shuts down moments after launch.
+    [DllImport("ws2_32.dll", EntryPoint = "WSASocketW", SetLastError = true)]
+    public static extern IntPtr WSASocketW(int af, int type, int protocol,
+        IntPtr lpProtocolInfo, uint g, int dwFlags);
 
     [DllImport("ws2_32.dll", EntryPoint = "bind", SetLastError = true)]
     public static extern int bind(IntPtr s, IntPtr name, int namelen);
@@ -142,11 +139,4 @@ internal static partial class NativeKernel
         IntPtr lpEnvironment, IntPtr lpCurrentDirectory,
         IntPtr lpStartupInfo, out ProcessInformation lpProcessInformation);
 
-    [DllImport("kernelbase.dll", EntryPoint = "CreateProcessInternalW", SetLastError = true, CharSet = CharSet.Unicode)]
-    public static extern bool CreateProcessInternalW(
-        IntPtr hUserToken, IntPtr lpApplicationName, IntPtr lpCommandLine,
-        IntPtr lpProcessAttributes, IntPtr lpThreadAttributes,
-        bool bInheritHandles, uint dwCreationFlags,
-        IntPtr lpEnvironment, IntPtr lpCurrentDirectory,
-        IntPtr lpStartupInfo, IntPtr lpProcessInformation, IntPtr hNewToken);
 }

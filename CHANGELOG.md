@@ -7,6 +7,47 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [2.3.9] — 2026-10-14 — Correct binding, a Verify button, and a known-good app (mstsc)
+
+### Fixed
+- **IPv6 / dual-stack binding corruption (general).** An IPv6 socket was being bound with
+  an IPv4 source address (and vice-versa), which corrupts the socket. Modern apps
+  (Chrome's network service especially) use dual-stack sockets heavily, so this made them
+  die seconds after launch. Binding now always uses the socket's own family, and a
+  dual-stack socket on an IPv4-only adapter is bound to the adapter's IPv4 as an
+  IPv4-mapped address (`::ffff:a.b.c.d`) — no family mismatch.
+- **`WSASocketW` dropped the caller's flags.** The hook recreated the socket with a plain
+  `socket()` call, losing `WSA_FLAG_OVERLAPPED` and breaking overlapped I/O. It now calls
+  the real `WSASocketW` with the original protocol info and flags.
+- **Reverted a child-hook change that destabilised Chrome.** Hooking
+  `CreateProcessInternalW` caught sandboxed renderer spawns and made the browser exit; the
+  Guest now skips sandboxed children (renderers/GPU/crashpad) when carrying the binding
+  into child processes.
+- **No more crash dialog on close.** Exiting from the tray (or the installer closing the
+  app during an update) disposed the DI provider and then let the window close; the
+  closing handler still asked that disposed provider for `ProfileService`, throwing
+  `ObjectDisposedException` shown as "A fatal error occurred." It now short-circuits once a
+  real shutdown is underway.
+
+### Added
+- **"Verify" button on each rule.** Checks the running process's live TCP connections
+  (`ConnectionInspector`, via the IP Helper API) and reports whether its traffic is
+  actually leaving through the chosen adapter's IP — so you can be *sure* an app is
+  tunneled, not leaking.
+- **Rule "Launch" launches the app bound** (suspended-create + inject) instead of
+  attaching to a running instance, since a running app can't be bound after the fact.
+
+### Browser support note
+- **Chrome/Edge** abort with `0xc0000409` (Control Flow Guard fail-fast) a few seconds
+  after injection — their exploit mitigations reject in-process DLL hooks. **Firefox**'s
+  launcher spawns the real browser via `NtCreateUserProcess`, bypassing the user-mode
+  hooks. Reliable browser support needs the kernel-level WFP approach (future work).
+- **Native apps bind cleanly and are verified working — e.g. Remote Desktop
+  (`mstsc.exe`): its RDP connection leaves via the tunnel's exit IP**, and Telegram and
+  plain sockets (curl) too. These are the supported, reliable use cases today.
+
+---
+
 ## [2.3.8] — 2026-10-14 — Bind browsers by launching them (attach can't)
 
 ### Fixed

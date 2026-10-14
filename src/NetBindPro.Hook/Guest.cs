@@ -34,6 +34,10 @@ public sealed class Guest : IEntryPoint
 
     private readonly List<LocalHook> _hooks = [];
     private readonly Dictionary<IntPtr, bool> _boundSockets = [];
+    // The address family each socket was created with, so we bind it to an adapter address
+    // of the SAME family. Binding an IPv4 source address onto an IPv6 socket (or vice
+    // versa) corrupts the socket and makes Chrome's network service die seconds in.
+    private readonly Dictionary<IntPtr, AddressFamily> _socketFamily = [];
     private readonly object _socketsLock = new();
 
     // Child PIDs already scheduled for injection, so a spawn seen by both the
@@ -113,13 +117,10 @@ public sealed class Guest : IEntryPoint
             new CloseSocketDelegate(OnClose));
 
         // Hook child process creation so spawned processes inherit the binding.
-        // CreateProcessInternalW (kernelbase) is the funnel that both CreateProcessW/A
-        // AND apps bypassing the public entry points (e.g. Firefox's launcher, which
-        // otherwise spawns the real browser via a path we don't see) go through. Child
-        // PIDs are de-duplicated so a spawn caught by more than one hook injects once.
-        InstallHook("kernelbase.dll", "CreateProcessInternalW",
-            new CreateProcessInternalWDelegate(CreateProcessInternalW_Hook));
-
+        // NOTE: we do NOT hook kernelbase!CreateProcessInternalW. It catches Chrome's
+        // sandboxed renderer spawns at a point where injecting them destabilises the
+        // browser (it exits moments after launch), and it did not help Firefox anyway
+        // (whose launcher spawns the real browser via NtCreateUserProcess, below both).
         InstallHook("kernel32.dll", "CreateProcessW",
             new CreateProcessDelegate(CreateProcessW_Hook));
 
@@ -162,6 +163,7 @@ public sealed class Guest : IEntryPoint
             lock (_socketsLock)
             {
                 if (!_boundSockets.ContainsKey(s)) _boundSockets.Add(s, false);
+                _socketFamily[s] = af;
             }
             Log("socket", $"New socket {s:X} af={af}");
         }
@@ -175,10 +177,21 @@ public sealed class Guest : IEntryPoint
     private IntPtr OnWSASocket(AddressFamily af, SocketType type, ProtocolType protocol,
         IntPtr lpProtocolInfo, uint g, int dwFlags)
     {
-        // Delegate to the original then track the new socket
-        var s = NativeWinsock.socket((int)af, (int)type, (int)protocol);
-        if (s != IntPtr.Zero)
-            lock (_socketsLock) { if (!_boundSockets.ContainsKey(s)) _boundSockets.Add(s, false); }
+        var lastErr = NativeWinsock.WSAGetLastError();
+
+        // Call the REAL WSASocketW with the caller's original protocol info and flags.
+        // Previously this substituted a plain socket(), which dropped WSA_FLAG_OVERLAPPED
+        // and broke Chrome's network service (the browser exited a few seconds after launch).
+        var s = NativeWinsock.WSASocketW((int)af, (int)type, (int)protocol, lpProtocolInfo, g, dwFlags);
+
+        if (s != IntPtr.Zero && s != new IntPtr(-1))
+            lock (_socketsLock)
+            {
+                if (!_boundSockets.ContainsKey(s)) _boundSockets.Add(s, false);
+                _socketFamily[s] = af;
+            }
+
+        NativeWinsock.WSASetLastError(lastErr);
         return s;
     }
 
@@ -187,14 +200,18 @@ public sealed class Guest : IEntryPoint
     private int OnBind(IntPtr s, IntPtr name, int namelen)
     {
         var lastErr = NativeWinsock.WSAGetLastError();
-        var fam = ReadAddressFamily(name);
+        var destFam = ReadAddressFamily(name);
 
         // Let internal/loopback binds pass through unchanged
-        if (ShouldSkip(name, fam))
+        if (ShouldSkip(name, destFam))
         {
             NativeWinsock.WSASetLastError(lastErr);
             return NativeWinsock.bind(s, name, namelen);
         }
+
+        AddressFamily sockFam;
+        lock (_socketsLock) _socketFamily.TryGetValue(s, out sockFam);
+        var fam = sockFam is AddressFamily.InterNetwork or AddressFamily.InterNetworkV6 ? sockFam : destFam;
 
         var port = ReadPort(name);
         var result = TryBindToAdapter(s, fam, port);
@@ -248,7 +265,7 @@ public sealed class Guest : IEntryPoint
     {
         var result = NativeWinsock.closesocket(s);
         if (result == 0)
-            lock (_socketsLock) { _boundSockets.Remove(s); }
+            lock (_socketsLock) { _boundSockets.Remove(s); _socketFamily.Remove(s); }
         return result;
     }
 
@@ -276,34 +293,37 @@ public sealed class Guest : IEntryPoint
             : NativeKernel.CreateProcessA(lpApp, lpCmd, lpPA, lpTA, bInherit, dwFlags, lpEnv, lpDir, lpSI, out pi);
 
         if (result && pi.dwProcessId > 0)
-            ScheduleChildInjection(pi.dwProcessId);
+        {
+            string? cmd = lpCmd == IntPtr.Zero
+                ? null
+                : (unicode ? Marshal.PtrToStringUni(lpCmd) : Marshal.PtrToStringAnsi(lpCmd));
+
+            // Don't inject sandboxed browser children (renderers/GPU/crashpad): they enable
+            // Arbitrary Code Guard, so injecting them fails and can destabilise the browser.
+            // The main and network/utility processes (where traffic flows) are not skipped.
+            if (IsSandboxedSpawn(cmd))
+                Log("CreateProcess", $"Skipping sandboxed child PID {pi.dwProcessId}");
+            else
+                ScheduleChildInjection(pi.dwProcessId);
+        }
 
         return result;
     }
 
-    // ─── Hook: CreateProcessInternalW() ──────────────────────────────────────
-
-    private bool CreateProcessInternalW_Hook(
-        IntPtr hUserToken, IntPtr lpApp, IntPtr lpCmd, IntPtr lpPA, IntPtr lpTA,
-        bool bInherit, uint dwFlags, IntPtr lpEnv, IntPtr lpDir,
-        IntPtr lpSI, IntPtr lpPI, IntPtr hNewToken)
+    /// <summary>True for a sandboxed browser child that must not be injected.</summary>
+    private static bool IsSandboxedSpawn(string? commandLine)
     {
-        bool result = NativeKernel.CreateProcessInternalW(
-            hUserToken, lpApp, lpCmd, lpPA, lpTA, bInherit, dwFlags, lpEnv, lpDir, lpSI, lpPI, hNewToken);
-
-        if (result && lpPI != IntPtr.Zero)
-        {
-            try
-            {
-                // PROCESS_INFORMATION: hProcess, hThread, dwProcessId, dwThreadId.
-                // dwProcessId follows the two handles.
-                var childPid = Marshal.ReadInt32(lpPI, IntPtr.Size * 2);
-                if (childPid > 0) ScheduleChildInjection(childPid);
-            }
-            catch (Exception ex) { Log("CreateProcessInternalW", $"read pid failed: {ex.Message}"); }
-        }
-
-        return result;
+        if (string.IsNullOrEmpty(commandLine)) return false;
+        if (commandLine.Contains("--type=renderer")) return true;
+        if (commandLine.Contains("--type=gpu-process")) return true;
+        if (commandLine.Contains("--type=crashpad-handler")) return true;
+        if (commandLine.Contains("--type=ppapi")) return true;
+        // Firefox content tab processes (keep the main + socket/network process injectable)
+        if (commandLine.Contains("-contentproc") &&
+            (commandLine.TrimEnd().EndsWith(" tab", StringComparison.OrdinalIgnoreCase) ||
+             commandLine.Contains(" tab ")))
+            return true;
+        return false;
     }
 
     /// <summary>
@@ -360,13 +380,21 @@ public sealed class Guest : IEntryPoint
     private bool EnsureBound(IntPtr s, IntPtr name)
     {
         bool alreadyBound;
+        AddressFamily sockFam;
         lock (_socketsLock)
+        {
             alreadyBound = _boundSockets.TryGetValue(s, out var v) && v;
+            _socketFamily.TryGetValue(s, out sockFam);
+        }
 
         if (alreadyBound) return true;
 
-        var fam = ReadAddressFamily(name);
-        if (ShouldSkip(name, fam)) return true; // loopback / multicast / link-local pass through
+        var destFam = ReadAddressFamily(name);
+        if (ShouldSkip(name, destFam)) return true; // loopback / multicast / link-local pass through
+
+        // Bind using the SOCKET's own family (fallback to the destination's), so an
+        // IPv6/dual-stack socket is never bound with an IPv4 sockaddr (which corrupts it).
+        var fam = sockFam is AddressFamily.InterNetwork or AddressFamily.InterNetworkV6 ? sockFam : destFam;
 
         var result = TryBindToAdapter(s, fam, port: 0);
 
@@ -395,8 +423,18 @@ public sealed class Guest : IEntryPoint
             return -1;
         }
 
-        if (fam == AddressFamily.InterNetworkV6 && ip6 != null)
-            return BindV6(s, ip6, port);
+        // CRITICAL: bind with a sockaddr of the SOCKET's family. Using an IPv4 sockaddr on
+        // an IPv6 socket (or vice-versa) corrupts the socket and makes Chrome's network
+        // service die seconds after launch.
+        if (fam == AddressFamily.InterNetworkV6)
+        {
+            if (ip6 != null) return BindV6(s, ip6, port);
+            // Dual-stack socket on an adapter with no usable IPv6: bind the socket to the
+            // adapter's IPv4 as an IPv4-mapped IPv6 address (::ffff:a.b.c.d). This routes the
+            // socket's (IPv4) traffic through the adapter without a family mismatch.
+            if (ip4 != null) return BindV6(s, ip4.MapToIPv6(), port);
+            return -1;
+        }
 
         if (ip4 != null)
             return BindV4(s, ip4, port);

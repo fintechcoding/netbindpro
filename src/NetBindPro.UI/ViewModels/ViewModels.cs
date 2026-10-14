@@ -103,31 +103,66 @@ public partial class RuleItemVm : ObservableObject
             return;
         }
 
-        // If it's already running, launching again usually just hands off to the existing
-        // (un-bound) instance — so warn the user to close it first.
-        var baseName = System.IO.Path.GetFileNameWithoutExtension(Rule.ProcessName);
-        if (System.Diagnostics.Process.GetProcessesByName(baseName).Length > 0)
+        // Browsers hand a new launch off to an already-running instance (which is NOT
+        // bound), so clicking Launch while Chrome is open would do nothing — the page
+        // still shows your real IP. To guarantee an independent, actually-bound process,
+        // browser rules launch into their OWN data directory (a separate "tunnel profile",
+        // kept apart from your normal browsing). Non-browser apps get no special args, so
+        // we warn if one is already running (it can't be bound after the fact).
+        var (launchArgs, isolatedBrowser) = BuildLaunchArgs();
+
+        if (!isolatedBrowser)
         {
-            var go = MessageBox.Show(
-                $"{Rule.ProcessName} is already running.\n\n" +
-                "A running app can't be bound after it has started — close ALL of its windows " +
-                "first, then launch it bound from here.\n\nLaunch a new bound instance anyway?",
-                "NetBind Pro", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-            if (go != MessageBoxResult.Yes) return;
+            var baseName = System.IO.Path.GetFileNameWithoutExtension(Rule.ProcessName);
+            if (System.Diagnostics.Process.GetProcessesByName(baseName).Length > 0)
+            {
+                var go = MessageBox.Show(
+                    $"{Rule.ProcessName} is already running.\n\n" +
+                    "A running app can't be bound after it has started — close ALL of its windows " +
+                    "first, then launch it bound from here.\n\nLaunch a new bound instance anyway?",
+                    "NetBind Pro", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (go != MessageBoxResult.Yes) return;
+            }
         }
 
         // delayMs 0 → the Hook uses suspended-create + inject (the only path that reliably
         // binds a hardened browser), and its CreateProcess hook carries the binding into
         // the child processes (the network/socket process where traffic actually flows).
         var result = await _injection.ExecuteAndInjectAsync(
-            exePath, adapterId, adapterName, delayMs: 0, killSwitch: Rule.KillSwitch);
+            exePath, adapterId, adapterName, arguments: launchArgs, delayMs: 0, killSwitch: Rule.KillSwitch);
 
         MessageBox.Show(
             result.Success
-                ? $"Launched '{Rule.ProcessName}' bound to {adapterName}."
+                ? $"Launched '{Rule.ProcessName}' bound to {adapterName}." +
+                  (isolatedBrowser ? "\n\nIt opens in a separate \"tunnel\" profile so it is always actually routed." : "")
                 : $"Couldn't launch '{Rule.ProcessName}' bound to {adapterName}: {result.Message}",
             "NetBind Pro", MessageBoxButton.OK,
             result.Success ? MessageBoxImage.Information : MessageBoxImage.Warning);
+    }
+
+    /// <summary>
+    /// Builds launch arguments for the rule. For a browser, returns args that open an
+    /// isolated per-rule data directory so the launch can't hand off to an already-running
+    /// (un-bound) instance. Returns (args, isolatedBrowser).
+    /// </summary>
+    private (string args, bool isolatedBrowser) BuildLaunchArgs()
+    {
+        var name = System.IO.Path.GetFileNameWithoutExtension(Rule.ProcessName).ToLowerInvariant();
+        var dir  = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "NetBindPro", "profiles", name);
+        try { System.IO.Directory.CreateDirectory(dir); } catch { /* best-effort */ }
+
+        // Chromium family: a distinct --user-data-dir forces a brand-new browser process.
+        if (name is "chrome" or "msedge" or "brave" or "chromium" or "opera" or "vivaldi" or "thorium")
+            return ($"--user-data-dir=\"{dir}\" --no-first-run --no-default-browser-check", true);
+
+        // Firefox: a dedicated profile + --no-remote starts an independent instance.
+        // (Note: Firefox's launcher still prevents the bind from sticking — see README.)
+        if (name is "firefox")
+            return ($"-no-remote -profile \"{dir}\"", true);
+
+        return (string.Empty, false);
     }
 
     /// <summary>Resolves the executable to launch: the rule's stored path, else a running
@@ -148,6 +183,73 @@ public partial class RuleItemVm : ObservableObject
         }
         catch { /* ignore */ }
         return null;
+    }
+
+    [RelayCommand]
+    private void Verify()
+    {
+        // Prove the rule works: every outbound connection of the running process must
+        // originate from the chosen adapter's IP. Anything on another IP is leaking.
+        var (adapterId, adapterName) = WireGuardService.ResolveRuleAdapter(Rule);
+        var adapter = AdapterDiscovery.GetAll(includeDown: true).FirstOrDefault(a =>
+            a.Id.Trim('{', '}').Equals(adapterId.Trim('{', '}'), StringComparison.OrdinalIgnoreCase));
+        var adapterIp = adapter?.IpV4Address;
+
+        if (string.IsNullOrWhiteSpace(adapterIp))
+        {
+            MessageBox.Show(
+                $"The adapter for this rule ({adapterName}) isn't up or has no IPv4 address. " +
+                "Start its tunnel first.", "Verify", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var baseName = System.IO.Path.GetFileNameWithoutExtension(Rule.ProcessName);
+        var procs = System.Diagnostics.Process.GetProcessesByName(baseName);
+        if (procs.Length == 0)
+        {
+            MessageBox.Show(
+                $"'{Rule.ProcessName}' isn't running. Launch it bound (▶) first, then Verify.",
+                "Verify", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var onAdapter = 0;
+        var leaking = new List<string>();
+        foreach (var p in procs)
+        {
+            foreach (var addr in ConnectionInspector.GetOutboundLocalAddresses(p.Id))
+            {
+                if (addr == adapterIp) onAdapter++;
+                else if (!leaking.Contains(addr)) leaking.Add(addr);
+            }
+        }
+
+        string msg; MessageBoxImage icon;
+        if (onAdapter > 0 && leaking.Count == 0)
+        {
+            msg = $"✓ Tunneled correctly.\n\nAll {onAdapter} active connection(s) of '{Rule.ProcessName}' " +
+                  $"go out through {adapterName} ({adapterIp}).";
+            icon = MessageBoxImage.Information;
+        }
+        else if (onAdapter > 0)
+        {
+            msg = $"⚠ Partly tunneled.\n\n{onAdapter} connection(s) go through {adapterName} ({adapterIp}), " +
+                  $"but some are leaking on: {string.Join(", ", leaking)}.";
+            icon = MessageBoxImage.Warning;
+        }
+        else if (leaking.Count > 0)
+        {
+            msg = $"✗ NOT tunneled.\n\n'{Rule.ProcessName}' is connecting from {string.Join(", ", leaking)}, " +
+                  $"not {adapterName} ({adapterIp}). Close it and launch it bound (▶) from here.";
+            icon = MessageBoxImage.Error;
+        }
+        else
+        {
+            msg = $"'{Rule.ProcessName}' is running but has no active outbound connections yet.\n\n" +
+                  "Make it connect to something, then Verify again.";
+            icon = MessageBoxImage.Information;
+        }
+        MessageBox.Show(msg, "Verify", MessageBoxButton.OK, icon);
     }
 
     [RelayCommand]
